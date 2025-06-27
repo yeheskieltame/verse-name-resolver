@@ -76,12 +76,10 @@ Setiap kontribusi akan digunakan untuk audit keamanan, pengembangan, dan operasi
     ```
     0x86979D26A14e17CF2E719dcB369d559f3ad41057
     ```
-    *(Disarankan: Ganti baris ini dengan gambar QR Code alamat Anda)*
 
 * **Jaringan Solana (SVM):**
     ```
     GXysRwrHscn6qoPpw3UYPHPxvcnHQ9YWsmpZwjhgU8bW
     ```
-    *(Disarankan: Ganti baris ini dengan gambar QR Code alamat Anda)*
 
 Terima kasih telah menjadi bagian dari perjalanan kami untuk membangun Web3 yang lebih baik!
