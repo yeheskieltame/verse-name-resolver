@@ -1,5 +1,12 @@
 
-export const SWNS_CONTRACT_ADDRESS = "0xa0C24C0130e85BD29ff87f1B5D348115E53cb59C";
+// Contract addresses for different networks
+export const NETWORK_CONTRACTS = {
+  TARANIUM: "0xa0C24C0130e85BD29ff87f1B5D348115E53cb59C",
+  SEPOLIA: "0xC51601dde25775bA2740EE14D633FA54e12Ef6C7"
+};
+
+// Legacy export for backward compatibility
+export const SWNS_CONTRACT_ADDRESS = NETWORK_CONTRACTS.TARANIUM;
 
 export const SWNS_ABI = [
 	{
@@ -657,6 +664,38 @@ export const TARANIUM_NETWORK = {
   chainId: 9924,
   name: "Taranium Testnet",
   rpcUrl: "https://testnet-rpc.taranium.com",
+  rpcUrls: ["https://testnet-rpc.taranium.com"],
   symbol: "TARAN",
   blockExplorer: "https://testnet-explorer.taranium.com"
+};
+
+export const SEPOLIA_NETWORK = {
+  chainId: 11155111,
+  name: "Sepolia",
+  rpcUrl: "https://ethereum-sepolia-rpc.publicnode.com",
+  rpcUrls: ["https://ethereum-sepolia-rpc.publicnode.com"],
+  symbol: "SepoliaETH", 
+  blockExplorer: "https://sepolia.etherscan.io"
+};
+
+export const SUPPORTED_NETWORKS = {
+  [TARANIUM_NETWORK.chainId]: TARANIUM_NETWORK,
+  [SEPOLIA_NETWORK.chainId]: SEPOLIA_NETWORK
+};
+
+// Helper function to get contract address for a specific chain
+export const getContractAddress = (chainId: number): string => {
+  switch (chainId) {
+    case TARANIUM_NETWORK.chainId:
+      return NETWORK_CONTRACTS.TARANIUM;
+    case SEPOLIA_NETWORK.chainId:
+      return NETWORK_CONTRACTS.SEPOLIA;
+    default:
+      return NETWORK_CONTRACTS.TARANIUM; // fallback
+  }
+};
+
+// Helper function to get network config
+export const getNetworkConfig = (chainId: number) => {
+  return SUPPORTED_NETWORKS[chainId] || TARANIUM_NETWORK;
 };

@@ -7,27 +7,30 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { Search } from 'lucide-react';
 import { SWNSService } from '@/services/swnsService';
+import { getNetworkConfig } from '@/contracts/swnsContract';
 
 interface NameRegistrationProps {
   swnsService: SWNSService | null;
   isConnected: boolean;
   registrationFee: string;
-  userNames: string[];
-  setUserNames: React.Dispatch<React.SetStateAction<string[]>>;
   updateBalance: () => Promise<void>;
+  chainId: number | null;
 }
 
 export const NameRegistration = ({ 
   swnsService, 
   isConnected, 
   registrationFee, 
-  userNames, 
-  setUserNames,
-  updateBalance 
+  updateBalance,
+  chainId 
 }: NameRegistrationProps) => {
   const [searchName, setSearchName] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
+
+  // Get current network config to display correct currency
+  const networkConfig = chainId ? getNetworkConfig(chainId) : null;
+  const currencySymbol = networkConfig?.symbol || 'ETH';
 
   const searchForName = async () => {
     if (!searchName.trim()) return;
@@ -147,7 +150,7 @@ export const NameRegistration = ({
           Register Your Name
         </CardTitle>
         <CardDescription className="text-purple-200">
-          Claim your unique .sw identity (Fee: {registrationFee} TARAN)
+          Claim your unique .sw identity (Fee: {registrationFee} {currencySymbol})
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -180,19 +183,6 @@ export const NameRegistration = ({
         >
           {isRegistering ? 'Registering...' : 'Register Name'}
         </Button>
-
-        {userNames.length > 0 && (
-          <div>
-            <p className="text-white text-sm font-medium mb-2">Your Names:</p>
-            <div className="flex flex-wrap gap-2">
-              {userNames.map((name) => (
-                <Badge key={name} variant="secondary" className="bg-purple-700 text-purple-100">
-                  {name}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
       </CardContent>
     </Card>
   );

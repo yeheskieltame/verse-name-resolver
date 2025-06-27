@@ -7,24 +7,31 @@ import { toast } from "@/hooks/use-toast";
 import { Send, Check, X } from 'lucide-react';
 import { SWNSService } from '@/services/swnsService';
 import { ethers } from 'ethers';
+import { getNetworkConfig } from '@/contracts/swnsContract';
 
 interface SendTokensProps {
   swnsService: SWNSService | null;
   isConnected: boolean;
   signer: ethers.JsonRpcSigner | null;
   updateBalance: () => Promise<void>;
+  chainId: number | null;
 }
 
 export const SendTokens = ({ 
   swnsService, 
   isConnected, 
   signer, 
-  updateBalance 
+  updateBalance,
+  chainId 
 }: SendTokensProps) => {
   const [sendToName, setSendToName] = useState('');
   const [sendAmount, setSendAmount] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [resolvedAddress, setResolvedAddress] = useState<string | null>(null);
+
+  // Get current network config to display correct currency
+  const networkConfig = chainId ? getNetworkConfig(chainId) : null;
+  const currencySymbol = networkConfig?.symbol || 'ETH';
 
   const resolveName = async (name: string): Promise<string | null> => {
     if (!swnsService) return null;
@@ -79,7 +86,7 @@ export const SendTokens = ({
       
       toast({
         title: "Transfer Successful! 💸",
-        description: `Sent ${sendAmount} TARAN to ${sendToName}.sw`,
+        description: `Sent ${sendAmount} ${currencySymbol} to ${sendToName}.sw`,
       });
       
       setSendToName('');
@@ -116,7 +123,7 @@ export const SendTokens = ({
       <CardHeader>
         <CardTitle className="text-white flex items-center gap-2">
           <Send className="w-5 h-5" />
-          Send TARAN Tokens
+          Send {currencySymbol} Tokens
         </CardTitle>
         <CardDescription className="text-purple-200">
           Send crypto using .sw names
@@ -138,7 +145,7 @@ export const SendTokens = ({
         <Input
           type="number"
           step="0.001"
-          placeholder="Amount in TARAN"
+          placeholder={`Amount in ${currencySymbol}`}
           value={sendAmount}
           onChange={(e) => setSendAmount(e.target.value)}
           className="bg-white/10 border-white/20 text-white placeholder:text-purple-300"

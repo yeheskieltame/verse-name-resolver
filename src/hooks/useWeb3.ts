@@ -1,7 +1,12 @@
 
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { TARANIUM_NETWORK } from '@/contracts/swnsContract';
+import { 
+  TARANIUM_NETWORK, 
+  SEPOLIA_NETWORK, 
+  SUPPORTED_NETWORKS,
+  getNetworkConfig 
+} from '@/contracts/swnsContract';
 
 declare global {
   interface Window {
@@ -41,10 +46,13 @@ export const useWeb3 = () => {
       const account = await signer.getAddress();
       const balance = await provider.getBalance(account);
       const network = await provider.getNetwork();
+      const chainId = Number(network.chainId);
 
-      // Switch to Taranium network if not already
-      if (Number(network.chainId) !== TARANIUM_NETWORK.chainId) {
-        await switchToTaraniumNetwork();
+      // Check if current network is supported
+      if (!SUPPORTED_NETWORKS[chainId]) {
+        console.log('Unsupported network, switching to Taranium...');
+        await switchToNetwork(TARANIUM_NETWORK);
+        return;
       }
 
       setWeb3State({
@@ -53,7 +61,7 @@ export const useWeb3 = () => {
         account,
         balance: ethers.formatEther(balance),
         isConnected: true,
-        chainId: Number(network.chainId),
+        chainId,
       });
 
     } catch (error) {
@@ -62,13 +70,13 @@ export const useWeb3 = () => {
     }
   };
 
-  const switchToTaraniumNetwork = async () => {
+  const switchToNetwork = async (targetNetwork: typeof TARANIUM_NETWORK) => {
     if (!window.ethereum) return;
 
     try {
       await window.ethereum.request({
         method: 'wallet_switchEthereumChain',
-        params: [{ chainId: `0x${TARANIUM_NETWORK.chainId.toString(16)}` }],
+        params: [{ chainId: `0x${targetNetwork.chainId.toString(16)}` }],
       });
     } catch (switchError: any) {
       // Network not added to MetaMask
@@ -77,14 +85,15 @@ export const useWeb3 = () => {
           await window.ethereum.request({
             method: 'wallet_addEthereumChain',
             params: [{
-              chainId: `0x${TARANIUM_NETWORK.chainId.toString(16)}`,
-              chainName: TARANIUM_NETWORK.name,
-              rpcUrls: [TARANIUM_NETWORK.rpcUrl],
+              chainId: `0x${targetNetwork.chainId.toString(16)}`,
+              chainName: targetNetwork.name,
+              rpcUrls: targetNetwork.rpcUrls || [targetNetwork.rpcUrl],
               nativeCurrency: {
-                name: 'TARAN',
-                symbol: 'TARAN',
+                name: targetNetwork.symbol,
+                symbol: targetNetwork.symbol,
                 decimals: 18,
               },
+              blockExplorerUrls: targetNetwork.blockExplorer ? [targetNetwork.blockExplorer] : undefined,
             }],
           });
         } catch (addError) {
@@ -144,6 +153,8 @@ export const useWeb3 = () => {
     connectWallet,
     disconnectWallet,
     updateBalance,
-    switchToTaraniumNetwork,
+    switchToNetwork,
+    switchToTaraniumNetwork: () => switchToNetwork(TARANIUM_NETWORK),
+    switchToSepoliaNetwork: () => switchToNetwork(SEPOLIA_NETWORK),
   };
 };

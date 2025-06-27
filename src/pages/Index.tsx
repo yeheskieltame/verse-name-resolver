@@ -10,6 +10,7 @@ import { SendTokens } from '@/components/SendTokens';
 import { NameDirectory } from '@/components/NameDirectory';
 import { FeatureCards } from '@/components/FeatureCards';
 import { DonationSection } from '@/components/DonationSection';
+import { NetworkInfo } from '@/components/NetworkInfo';
 
 interface RegisteredName {
   name: string;
@@ -27,18 +28,18 @@ const Index = () => {
     chainId,
     connectWallet: connectWeb3Wallet, 
     disconnectWallet,
-    updateBalance 
+    updateBalance,
+    switchToNetwork
   } = useWeb3();
   
   const [registeredNames, setRegisteredNames] = useState<RegisteredName[]>([]);
-  const [userNames, setUserNames] = useState<string[]>([]);
   const [swnsService, setSWNSService] = useState<SWNSService | null>(null);
   const [registrationFee, setRegistrationFee] = useState<string>('0');
 
   // Initialize SWNS service when signer is available
   useEffect(() => {
-    if (signer) {
-      const service = new SWNSService(signer);
+    if (signer && chainId) {
+      const service = new SWNSService(signer, chainId);
       setSWNSService(service);
 
       // Get registration fee
@@ -48,10 +49,6 @@ const Index = () => {
 
       // Listen to name registration events
       service.onNameRegistered((name, owner, tokenId) => {
-        if (owner.toLowerCase() === account.toLowerCase()) {
-          setUserNames(prev => [...prev, name]);
-        }
-        
         setRegisteredNames(prev => [...prev, {
           name,
           address: owner,
@@ -63,11 +60,24 @@ const Index = () => {
         service.removeAllListeners();
       };
     }
-  }, [signer, account]);
+  }, [signer, account, chainId]);
+
+  // Update service when network changes
+  useEffect(() => {
+    if (swnsService && signer && chainId) {
+      swnsService.updateNetwork(chainId, signer).then(() => {
+        // Refresh registration fee for new network
+        swnsService.getRegistrationFee().then(fee => {
+          setRegistrationFee(ethers.formatEther(fee));
+        });
+      }).catch(error => {
+        console.error('Failed to update network:', error);
+      });
+    }
+  }, [chainId, swnsService, signer]);
 
   const handleDisconnect = () => {
     disconnectWallet();
-    setUserNames([]);
     setSWNSService(null);
     toast({
       title: "Wallet Disconnected",
@@ -85,18 +95,20 @@ const Index = () => {
           chainId={chainId}
           connectWallet={connectWeb3Wallet}
           handleDisconnect={handleDisconnect}
+          switchToNetwork={switchToNetwork}
         />
 
         <HeroSection />
+
+        <NetworkInfo chainId={chainId} isConnected={isConnected} />
 
         <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
           <NameRegistration 
             swnsService={swnsService}
             isConnected={isConnected}
             registrationFee={registrationFee}
-            userNames={userNames}
-            setUserNames={setUserNames}
             updateBalance={updateBalance}
+            chainId={chainId}
           />
 
           <SendTokens 
@@ -104,6 +116,7 @@ const Index = () => {
             isConnected={isConnected}
             signer={signer}
             updateBalance={updateBalance}
+            chainId={chainId}
           />
         </div>
 
