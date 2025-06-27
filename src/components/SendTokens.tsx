@@ -1,0 +1,168 @@
+
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toast } from "@/hooks/use-toast";
+import { Send, Check, X } from 'lucide-react';
+import { SWNSService } from '@/services/swnsService';
+import { ethers } from 'ethers';
+
+interface SendTokensProps {
+  swnsService: SWNSService | null;
+  isConnected: boolean;
+  signer: ethers.JsonRpcSigner | null;
+  updateBalance: () => Promise<void>;
+}
+
+export const SendTokens = ({ 
+  swnsService, 
+  isConnected, 
+  signer, 
+  updateBalance 
+}: SendTokensProps) => {
+  const [sendToName, setSendToName] = useState('');
+  const [sendAmount, setSendAmount] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [resolvedAddress, setResolvedAddress] = useState<string | null>(null);
+
+  const resolveName = async (name: string): Promise<string | null> => {
+    if (!swnsService) return null;
+    return await swnsService.resolveName(name);
+  };
+
+  const sendTokens = async () => {
+    if (!isConnected || !signer) {
+      toast({
+        title: "Connect Wallet",
+        description: "Please connect your wallet first",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!sendToName.trim() || !sendAmount.trim()) {
+      toast({
+        title: "Fill All Fields",
+        description: "Please enter recipient name and amount",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSending(true);
+    
+    try {
+      const resolvedAddress = await resolveName(sendToName);
+      if (!resolvedAddress) {
+        toast({
+          title: "Name Not Found",
+          description: `${sendToName} is not registered`,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const amount = ethers.parseEther(sendAmount);
+      
+      const tx = await signer.sendTransaction({
+        to: resolvedAddress,
+        value: amount
+      });
+
+      toast({
+        title: "Transaction Sent! ⏳",
+        description: "Waiting for confirmation...",
+      });
+
+      await tx.wait();
+      
+      toast({
+        title: "Transfer Successful! 💸",
+        description: `Sent ${sendAmount} TARAN to ${sendToName}`,
+      });
+      
+      setSendToName('');
+      setSendAmount('');
+      await updateBalance();
+      
+    } catch (error: any) {
+      console.error('Send error:', error);
+      toast({
+        title: "Transfer Failed",
+        description: error.reason || error.message || "Transaction failed",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  useEffect(() => {
+    const checkResolution = async () => {
+      if (sendToName && swnsService) {
+        const address = await resolveName(sendToName);
+        setResolvedAddress(address);
+      } else {
+        setResolvedAddress(null);
+      }
+    };
+    
+    checkResolution();
+  }, [sendToName, swnsService]);
+
+  return (
+    <Card className="bg-white/10 backdrop-blur-lg border-white/20">
+      <CardHeader>
+        <CardTitle className="text-white flex items-center gap-2">
+          <Send className="w-5 h-5" />
+          Send TARAN Tokens
+        </CardTitle>
+        <CardDescription className="text-purple-200">
+          Send crypto using .sw names
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Input
+          placeholder="Recipient (e.g., friend.sw)"
+          value={sendToName}
+          onChange={(e) => setSendToName(e.target.value)}
+          className="bg-white/10 border-white/20 text-white placeholder:text-purple-300"
+        />
+        
+        <Input
+          type="number"
+          step="0.001"
+          placeholder="Amount in TARAN"
+          value={sendAmount}
+          onChange={(e) => setSendAmount(e.target.value)}
+          className="bg-white/10 border-white/20 text-white placeholder:text-purple-300"
+        />
+        
+        <Button 
+          onClick={sendTokens} 
+          disabled={!sendToName || !sendAmount || isSending || !isConnected}
+          className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
+        >
+          {isSending ? 'Sending...' : 'Send Tokens'}
+        </Button>
+
+        {sendToName && (
+          <div className="text-sm">
+            {resolvedAddress ? (
+              <div className="flex items-center gap-2 text-green-300">
+                <Check className="w-4 h-4" />
+                <span>Name resolved: {resolvedAddress.substring(0, 10)}...{resolvedAddress.substring(32)}</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-red-300">
+                <X className="w-4 h-4" />
+                <span>Name not found</span>
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
