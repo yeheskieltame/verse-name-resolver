@@ -54,12 +54,12 @@ export const NameRegistration = ({
       } else if (result.available) {
         toast({
           title: "Name Available! ✨",
-          description: `${searchName} is available for registration`,
+          description: `${searchName}.sw is available for registration`,
         });
       } else {
         toast({
           title: "Name Taken",
-          description: `${searchName} is already registered`,
+          description: `${searchName}.sw is already registered`,
           variant: "destructive"
         });
       }
@@ -116,7 +116,7 @@ export const NameRegistration = ({
       if (receipt?.status === 1) {
         toast({
           title: "Registration Successful! 🎉",
-          description: `${searchName} is now yours!`,
+          description: `${searchName}.sw is now yours!`,
         });
         
         setSearchName('');
@@ -152,12 +152,17 @@ export const NameRegistration = ({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex gap-2">
-          <Input
-            placeholder="Enter name (e.g., yourname.sw)"
-            value={searchName}
-            onChange={(e) => setSearchName(e.target.value)}
-            className="bg-white/10 border-white/20 text-white placeholder:text-purple-300"
-          />
+          <div className="relative flex-1">
+            <Input
+              placeholder="Enter username (e.g., yourname)"
+              value={searchName}
+              onChange={(e) => setSearchName(e.target.value)}
+              className="bg-white/10 border-white/20 text-white placeholder:text-purple-300 pr-10"
+            />
+            <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-purple-300 text-sm">
+              .sw
+            </span>
+          </div>
           <Button 
             onClick={searchForName} 
             disabled={isSearching || !swnsService}

@@ -57,7 +57,7 @@ export const SendTokens = ({
       if (!resolvedAddress) {
         toast({
           title: "Name Not Found",
-          description: `${sendToName} is not registered`,
+          description: `${sendToName}.sw is not registered`,
           variant: "destructive"
         });
         return;
@@ -79,7 +79,7 @@ export const SendTokens = ({
       
       toast({
         title: "Transfer Successful! 💸",
-        description: `Sent ${sendAmount} TARAN to ${sendToName}`,
+        description: `Sent ${sendAmount} TARAN to ${sendToName}.sw`,
       });
       
       setSendToName('');
@@ -123,12 +123,17 @@ export const SendTokens = ({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Input
-          placeholder="Recipient (e.g., friend.sw)"
-          value={sendToName}
-          onChange={(e) => setSendToName(e.target.value)}
-          className="bg-white/10 border-white/20 text-white placeholder:text-purple-300"
-        />
+        <div className="relative">
+          <Input
+            placeholder="Recipient username (e.g., friend)"
+            value={sendToName}
+            onChange={(e) => setSendToName(e.target.value)}
+            className="bg-white/10 border-white/20 text-white placeholder:text-purple-300 pr-10"
+          />
+          <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-purple-300 text-sm">
+            .sw
+          </span>
+        </div>
         
         <Input
           type="number"

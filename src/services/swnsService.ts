@@ -16,11 +16,13 @@ export class SWNSService {
 
   async checkNameAvailability(name: string): Promise<{ available: boolean; error?: string }> {
     try {
-      if (!name.endsWith('.sw')) {
-        return { available: false, error: 'Name must end with .sw' };
+      // Remove .sw if user added it, we only need the username
+      const cleanName = name.endsWith('.sw') ? name.slice(0, -3) : name;
+      
+      if (cleanName.length < 3) {
+        return { available: false, error: 'Name must be at least 3 characters' };
       }
 
-      const cleanName = name.slice(0, -3); // Remove .sw suffix for contract call
       await this.readOnlyContract.resolve(cleanName);
       
       // If resolve doesn't throw, name is taken
@@ -37,7 +39,8 @@ export class SWNSService {
   }
 
   async registerName(name: string): Promise<ethers.ContractTransactionResponse> {
-    const cleanName = name.slice(0, -3); // Remove .sw suffix
+    // Remove .sw if user added it, we only need the clean username
+    const cleanName = name.endsWith('.sw') ? name.slice(0, -3) : name;
     const fee = await this.getRegistrationFee();
     
     console.log('Registering name:', cleanName, 'with fee:', fee);
@@ -47,7 +50,8 @@ export class SWNSService {
 
   async resolveName(name: string): Promise<string | null> {
     try {
-      const cleanName = name.slice(0, -3); // Remove .sw suffix
+      // Remove .sw if user added it, we only need the clean username
+      const cleanName = name.endsWith('.sw') ? name.slice(0, -3) : name;
       const address = await this.readOnlyContract.resolve(cleanName);
       return address;
     } catch (error) {
@@ -84,6 +88,7 @@ export class SWNSService {
   onNameRegistered(callback: (name: string, owner: string, tokenId: string) => void) {
     this.readOnlyContract.on('NameRegistered', (name, owner, tokenId, expires) => {
       console.log('Name registered event:', { name, owner, tokenId });
+      // Add .sw suffix for display purposes
       callback(name + '.sw', owner, tokenId.toString());
     });
   }
