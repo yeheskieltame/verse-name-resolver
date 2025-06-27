@@ -4,15 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
-import { Wallet, Search, Send, Shield, Globe, Zap, Check, X } from 'lucide-react';
-
-interface WalletState {
-  isConnected: boolean;
-  address: string;
-  balance: number;
-}
+import { Wallet, Search, Send, Shield, Globe, Zap, Check, X, AlertCircle } from 'lucide-react';
+import { useWeb3 } from '@/hooks/useWeb3';
+import { SWNSService } from '@/services/swnsService';
+import { ethers } from 'ethers';
 
 interface RegisteredName {
   name: string;
@@ -21,104 +17,134 @@ interface RegisteredName {
 }
 
 const Index = () => {
-  const [wallet, setWallet] = useState<WalletState>({
-    isConnected: false,
-    address: '',
-    balance: 0
-  });
+  const { 
+    provider, 
+    signer, 
+    account, 
+    balance, 
+    isConnected, 
+    chainId,
+    connectWallet: connectWeb3Wallet, 
+    disconnectWallet,
+    updateBalance 
+  } = useWeb3();
   
   const [searchName, setSearchName] = useState('');
-  const [registeredNames, setRegisteredNames] = useState<RegisteredName[]>([
-    { name: 'admin.sw', address: '0x742d35Cc6aBc7532BD5038acb21cd5e', owner: '0x742d35Cc6aBc7532BD5038acb21cd5e' },
-    { name: 'demo.sw', address: '0x8ba1f109551bD432803012645Hac189B', owner: '0x8ba1f109551bD432803012645Hac189B' }
-  ]);
-  
+  const [registeredNames, setRegisteredNames] = useState<RegisteredName[]>([]);
   const [userNames, setUserNames] = useState<string[]>([]);
   const [sendToName, setSendToName] = useState('');
   const [sendAmount, setSendAmount] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [swnsService, setSWNSService] = useState<SWNSService | null>(null);
+  const [registrationFee, setRegistrationFee] = useState<string>('0');
+
+  // Initialize SWNS service when signer is available
+  useEffect(() => {
+    if (signer) {
+      const service = new SWNSService(signer);
+      setSWNSService(service);
+
+      // Get registration fee
+      service.getRegistrationFee().then(fee => {
+        setRegistrationFee(ethers.formatEther(fee));
+      });
+
+      // Listen to name registration events
+      service.onNameRegistered((name, owner, tokenId) => {
+        if (owner.toLowerCase() === account.toLowerCase()) {
+          setUserNames(prev => [...prev, name]);
+        }
+        
+        setRegisteredNames(prev => [...prev, {
+          name,
+          address: owner,
+          owner
+        }]);
+      });
+
+      return () => {
+        service.removeAllListeners();
+      };
+    }
+  }, [signer, account]);
 
   const connectWallet = async () => {
-    // Simulate wallet connection
     try {
-      const mockAddress = '0x' + Math.random().toString(16).substring(2, 42);
-      setWallet({
-        isConnected: true,
-        address: mockAddress,
-        balance: 1250.75
-      });
+      await connectWeb3Wallet();
       toast({
-        title: "Wallet Connected",
-        description: "Successfully connected to MetaMask",
+        title: "Wallet Connected! 🎉",
+        description: "Successfully connected to Taranium testnet",
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Connection error:', error);
       toast({
         title: "Connection Failed",
-        description: "Please install MetaMask",
+        description: error.message || "Please install MetaMask and try again",
         variant: "destructive"
       });
     }
   };
 
-  const disconnectWallet = () => {
-    setWallet({
-      isConnected: false,
-      address: '',
-      balance: 0
-    });
+  const handleDisconnect = () => {
+    disconnectWallet();
     setUserNames([]);
+    setSWNSService(null);
     toast({
       title: "Wallet Disconnected",
       description: "Your wallet has been disconnected",
     });
   };
 
-  const checkNameAvailability = async (name: string) => {
-    if (!name.endsWith('.sw')) {
-      return { available: false, error: 'Name must end with .sw' };
-    }
-    
-    const cleanName = name.toLowerCase();
-    const exists = registeredNames.some(n => n.name === cleanName);
-    
-    return { available: !exists, error: null };
-  };
-
   const searchForName = async () => {
     if (!searchName.trim()) return;
+    if (!swnsService) {
+      toast({
+        title: "Connect Wallet",
+        description: "Please connect your wallet first",
+        variant: "destructive"
+      });
+      return;
+    }
     
     setIsSearching(true);
     
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const result = await checkNameAvailability(searchName);
-    setIsSearching(false);
-    
-    if (result.error) {
+    try {
+      const result = await swnsService.checkNameAvailability(searchName);
+      
+      if (result.error) {
+        toast({
+          title: "Invalid Name",
+          description: result.error,
+          variant: "destructive"
+        });
+      } else if (result.available) {
+        toast({
+          title: "Name Available! ✨",
+          description: `${searchName} is available for registration`,
+        });
+      } else {
+        toast({
+          title: "Name Taken",
+          description: `${searchName} is already registered`,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Search error:', error);
       toast({
-        title: "Invalid Name",
-        description: result.error,
+        title: "Search Failed",
+        description: "Failed to check name availability",
         variant: "destructive"
       });
-    } else if (result.available) {
-      toast({
-        title: "Name Available! ✨",
-        description: `${searchName} is available for registration`,
-      });
-    } else {
-      toast({
-        title: "Name Taken",
-        description: `${searchName} is already registered`,
-        variant: "destructive"
-      });
+    } finally {
+      setIsSearching(false);
     }
   };
 
   const registerName = async () => {
-    if (!wallet.isConnected) {
+    if (!isConnected || !swnsService) {
       toast({
         title: "Connect Wallet",
         description: "Please connect your wallet first",
@@ -128,46 +154,66 @@ const Index = () => {
     }
 
     if (!searchName.trim()) return;
-    
-    const result = await checkNameAvailability(searchName);
-    if (!result.available) {
-      toast({
-        title: "Cannot Register",
-        description: result.error || "Name is not available",
-        variant: "destructive"
-      });
-      return;
-    }
 
     setIsRegistering(true);
     
-    // Simulate blockchain transaction
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const newName: RegisteredName = {
-      name: searchName.toLowerCase(),
-      address: wallet.address,
-      owner: wallet.address
-    };
-    
-    setRegisteredNames(prev => [...prev, newName]);
-    setUserNames(prev => [...prev, newName.name]);
-    setSearchName('');
-    setIsRegistering(false);
-    
-    toast({
-      title: "Registration Successful! 🎉",
-      description: `${newName.name} is now yours!`,
-    });
+    try {
+      // Check availability first
+      const result = await swnsService.checkNameAvailability(searchName);
+      if (!result.available) {
+        toast({
+          title: "Cannot Register",
+          description: result.error || "Name is not available",
+          variant: "destructive"
+        });
+        setIsRegistering(false);
+        return;
+      }
+
+      // Register the name
+      const tx = await swnsService.registerName(searchName);
+      
+      toast({
+        title: "Transaction Sent! ⏳",
+        description: "Waiting for confirmation...",
+      });
+
+      // Wait for transaction confirmation
+      const receipt = await tx.wait();
+      
+      if (receipt?.status === 1) {
+        toast({
+          title: "Registration Successful! 🎉",
+          description: `${searchName} is now yours!`,
+        });
+        
+        setSearchName('');
+        await updateBalance();
+        
+        // The name will be added to userNames via the event listener
+      } else {
+        throw new Error('Transaction failed');
+      }
+      
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      toast({
+        title: "Registration Failed",
+        description: error.reason || error.message || "Transaction failed",
+        variant: "destructive"
+      });
+    } finally {
+      setIsRegistering(false);
+    }
   };
 
-  const resolveName = (name: string): string | null => {
-    const found = registeredNames.find(n => n.name === name.toLowerCase());
-    return found ? found.address : null;
+  const resolveName = async (name: string): Promise<string | null> => {
+    if (!swnsService) return null;
+    return await swnsService.resolveName(name);
   };
 
   const sendTokens = async () => {
-    if (!wallet.isConnected) {
+    if (!isConnected || !signer) {
       toast({
         title: "Connect Wallet",
         description: "Please connect your wallet first",
@@ -185,32 +231,68 @@ const Index = () => {
       return;
     }
 
-    const resolvedAddress = resolveName(sendToName);
-    if (!resolvedAddress) {
-      toast({
-        title: "Name Not Found",
-        description: `${sendToName} is not registered`,
-        variant: "destructive"
-      });
-      return;
-    }
-
     setIsSending(true);
     
-    // Simulate transaction
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const amount = parseFloat(sendAmount);
-    setWallet(prev => ({ ...prev, balance: prev.balance - amount }));
-    setSendToName('');
-    setSendAmount('');
-    setIsSending(false);
-    
-    toast({
-      title: "Transfer Successful! 💸",
-      description: `Sent ${amount} tokens to ${sendToName}`,
-    });
+    try {
+      const resolvedAddress = await resolveName(sendToName);
+      if (!resolvedAddress) {
+        toast({
+          title: "Name Not Found",
+          description: `${sendToName} is not registered`,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const amount = ethers.parseEther(sendAmount);
+      
+      const tx = await signer.sendTransaction({
+        to: resolvedAddress,
+        value: amount
+      });
+
+      toast({
+        title: "Transaction Sent! ⏳",
+        description: "Waiting for confirmation...",
+      });
+
+      await tx.wait();
+      
+      toast({
+        title: "Transfer Successful! 💸",
+        description: `Sent ${sendAmount} TARAN to ${sendToName}`,
+      });
+      
+      setSendToName('');
+      setSendAmount('');
+      await updateBalance();
+      
+    } catch (error: any) {
+      console.error('Send error:', error);
+      toast({
+        title: "Transfer Failed",
+        description: error.reason || error.message || "Transaction failed",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSending(false);
+    }
   };
+
+  const [resolvedAddress, setResolvedAddress] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const checkResolution = async () => {
+      if (sendToName && swnsService) {
+        const address = await resolveName(sendToName);
+        setResolvedAddress(address);
+      } else {
+        setResolvedAddress(null);
+      }
+    };
+    
+    checkResolution();
+  }, [sendToName, swnsService]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
@@ -227,13 +309,19 @@ const Index = () => {
             </div>
           </div>
           
-          {wallet.isConnected ? (
+          {isConnected ? (
             <div className="flex items-center gap-4">
               <div className="text-right">
-                <p className="text-white text-sm font-medium">{wallet.balance.toFixed(2)} ETH</p>
-                <p className="text-purple-200 text-xs">{wallet.address.substring(0, 6)}...{wallet.address.substring(38)}</p>
+                <p className="text-white text-sm font-medium">{parseFloat(balance).toFixed(4)} TARAN</p>
+                <p className="text-purple-200 text-xs">{account.substring(0, 6)}...{account.substring(38)}</p>
+                {chainId !== 9924 && (
+                  <div className="flex items-center gap-1 text-yellow-300 text-xs">
+                    <AlertCircle className="w-3 h-3" />
+                    Wrong Network
+                  </div>
+                )}
               </div>
-              <Button onClick={disconnectWallet} variant="outline" className="border-purple-400 text-purple-100 hover:bg-purple-800">
+              <Button onClick={handleDisconnect} variant="outline" className="border-purple-400 text-purple-100 hover:bg-purple-800">
                 <Wallet className="w-4 h-4 mr-2" />
                 Disconnect
               </Button>
@@ -252,7 +340,7 @@ const Index = () => {
             Web3 Made <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Simple</span>
           </h2>
           <p className="text-xl text-purple-200 mb-8 max-w-2xl mx-auto">
-            Send crypto using simple names like <span className="text-purple-300 font-mono">yourname.sw</span> instead of complex wallet addresses
+            Send crypto using simple names like <span className="text-purple-300 font-mono">yourname.sw</span> instead of complex wallet addresses on Taranium Network
           </p>
           
           <div className="flex justify-center gap-8 mb-8">
@@ -280,7 +368,7 @@ const Index = () => {
                 Register Your Name
               </CardTitle>
               <CardDescription className="text-purple-200">
-                Claim your unique .sw identity
+                Claim your unique .sw identity (Fee: {registrationFee} TARAN)
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -293,7 +381,7 @@ const Index = () => {
                 />
                 <Button 
                   onClick={searchForName} 
-                  disabled={isSearching}
+                  disabled={isSearching || !swnsService}
                   variant="outline"
                   className="border-purple-400 text-purple-100 hover:bg-purple-800"
                 >
@@ -303,7 +391,7 @@ const Index = () => {
               
               <Button 
                 onClick={registerName} 
-                disabled={!searchName || isRegistering}
+                disabled={!searchName || isRegistering || !isConnected}
                 className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
               >
                 {isRegistering ? 'Registering...' : 'Register Name'}
@@ -329,7 +417,7 @@ const Index = () => {
             <CardHeader>
               <CardTitle className="text-white flex items-center gap-2">
                 <Send className="w-5 h-5" />
-                Send Tokens
+                Send TARAN Tokens
               </CardTitle>
               <CardDescription className="text-purple-200">
                 Send crypto using .sw names
@@ -345,7 +433,8 @@ const Index = () => {
               
               <Input
                 type="number"
-                placeholder="Amount"
+                step="0.001"
+                placeholder="Amount in TARAN"
                 value={sendAmount}
                 onChange={(e) => setSendAmount(e.target.value)}
                 className="bg-white/10 border-white/20 text-white placeholder:text-purple-300"
@@ -353,7 +442,7 @@ const Index = () => {
               
               <Button 
                 onClick={sendTokens} 
-                disabled={!sendToName || !sendAmount || isSending}
+                disabled={!sendToName || !sendAmount || isSending || !isConnected}
                 className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
               >
                 {isSending ? 'Sending...' : 'Send Tokens'}
@@ -361,10 +450,10 @@ const Index = () => {
 
               {sendToName && (
                 <div className="text-sm">
-                  {resolveName(sendToName) ? (
+                  {resolvedAddress ? (
                     <div className="flex items-center gap-2 text-green-300">
                       <Check className="w-4 h-4" />
-                      <span>Name resolved successfully</span>
+                      <span>Name resolved: {resolvedAddress.substring(0, 10)}...{resolvedAddress.substring(32)}</span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 text-red-300">
@@ -388,8 +477,8 @@ const Index = () => {
           </CardHeader>
           <CardContent>
             <div className="grid gap-3">
-              {registeredNames.slice(-5).map((name) => (
-                <div key={name.name} className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+              {registeredNames.slice(-5).map((name, index) => (
+                <div key={`${name.name}-${index}`} className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
                   <div>
                     <p className="text-white font-medium">{name.name}</p>
                     <p className="text-purple-300 text-sm font-mono">{name.address.substring(0, 10)}...{name.address.substring(32)}</p>
@@ -399,6 +488,11 @@ const Index = () => {
                   </Badge>
                 </div>
               ))}
+              {registeredNames.length === 0 && (
+                <div className="text-center py-8 text-purple-300">
+                  No names registered yet. Be the first to claim your .sw identity!
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
