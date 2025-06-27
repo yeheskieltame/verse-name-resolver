@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { toast } from "@/hooks/use-toast";
 import { useWeb3 } from '@/hooks/useWeb3';
@@ -10,6 +9,7 @@ import { NameRegistration } from '@/components/NameRegistration';
 import { SendTokens } from '@/components/SendTokens';
 import { NameDirectory } from '@/components/NameDirectory';
 import { FeatureCards } from '@/components/FeatureCards';
+import { DonationSection } from '@/components/DonationSection';
 
 interface RegisteredName {
   name: string;
@@ -108,6 +108,8 @@ const Index = () => {
         </div>
 
         <NameDirectory registeredNames={registeredNames} />
+
+        <DonationSection />
 
         <FeatureCards />
       </div>
