@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { Search } from 'lucide-react';
 import { SWNSService } from '@/services/swnsService';
-import { getNetworkConfig } from '@/contracts/swnsContract';
+import { getNetworkConfig, ETHEREUM_NETWORK } from '@/contracts/swnsContract';
 
 interface NameRegistrationProps {
   swnsService: SWNSService | null;
@@ -29,8 +28,9 @@ export const NameRegistration = ({
   const [isRegistering, setIsRegistering] = useState(false);
 
   // Get current network config to display correct currency
-  const networkConfig = chainId ? getNetworkConfig(chainId) : null;
-  const currencySymbol = networkConfig?.symbol || 'ETH';
+  const currentNetwork = chainId ? getNetworkConfig(chainId) : null;
+  const isMainnet = chainId === ETHEREUM_NETWORK.chainId;
+  const currencySymbol = currentNetwork?.symbol || 'ETH';
 
   const searchForName = async () => {
     if (!searchName.trim()) return;
@@ -154,6 +154,17 @@ export const NameRegistration = ({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {isMainnet && (
+          <div className="bg-yellow-900/30 border border-yellow-700 rounded-lg p-3">
+            <div className="flex items-center gap-2 text-yellow-300">
+              <span className="text-sm font-medium">⚠️ SWNS Not Available on Mainnet</span>
+            </div>
+            <p className="text-yellow-200 text-xs mt-1">
+              Please switch to Taranium Testnet or Sepolia to register names. Mainnet is for donations only.
+            </p>
+          </div>
+        )}
+        
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Input
@@ -168,7 +179,7 @@ export const NameRegistration = ({
           </div>
           <Button 
             onClick={searchForName} 
-            disabled={isSearching || !swnsService}
+            disabled={isSearching || !swnsService || isMainnet}
             variant="outline"
             className="border-purple-400 text-purple-100 hover:bg-purple-800"
           >
@@ -178,7 +189,7 @@ export const NameRegistration = ({
         
         <Button 
           onClick={registerName} 
-          disabled={!searchName || isRegistering || !isConnected}
+          disabled={!searchName || isRegistering || !isConnected || isMainnet}
           className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
         >
           {isRegistering ? 'Registering...' : 'Register Name'}

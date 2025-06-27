@@ -2,7 +2,8 @@
 // Contract addresses for different networks
 export const NETWORK_CONTRACTS = {
   TARANIUM: "0xa0C24C0130e85BD29ff87f1B5D348115E53cb59C",
-  SEPOLIA: "0xC51601dde25775bA2740EE14D633FA54e12Ef6C7"
+  SEPOLIA: "0xC51601dde25775bA2740EE14D633FA54e12Ef6C7",
+  ETHEREUM: "0x0000000000000000000000000000000000000000" // No SWNS contract on mainnet, for donations only
 };
 
 // Legacy export for backward compatibility
@@ -678,9 +679,19 @@ export const SEPOLIA_NETWORK = {
   blockExplorer: "https://sepolia.etherscan.io"
 };
 
+export const ETHEREUM_NETWORK = {
+  chainId: 1,
+  name: "Ethereum Mainnet",
+  rpcUrl: "https://ethereum-rpc.publicnode.com",
+  rpcUrls: ["https://ethereum-rpc.publicnode.com"],
+  symbol: "ETH",
+  blockExplorer: "https://etherscan.io"
+};
+
 export const SUPPORTED_NETWORKS = {
   [TARANIUM_NETWORK.chainId]: TARANIUM_NETWORK,
-  [SEPOLIA_NETWORK.chainId]: SEPOLIA_NETWORK
+  [SEPOLIA_NETWORK.chainId]: SEPOLIA_NETWORK,
+  [ETHEREUM_NETWORK.chainId]: ETHEREUM_NETWORK
 };
 
 // Helper function to get contract address for a specific chain
@@ -690,6 +701,8 @@ export const getContractAddress = (chainId: number): string => {
       return NETWORK_CONTRACTS.TARANIUM;
     case SEPOLIA_NETWORK.chainId:
       return NETWORK_CONTRACTS.SEPOLIA;
+    case ETHEREUM_NETWORK.chainId:
+      return NETWORK_CONTRACTS.ETHEREUM;
     default:
       return NETWORK_CONTRACTS.TARANIUM; // fallback
   }

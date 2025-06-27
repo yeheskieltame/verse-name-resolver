@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +6,7 @@ import { toast } from "@/hooks/use-toast";
 import { Send, Check, X } from 'lucide-react';
 import { SWNSService } from '@/services/swnsService';
 import { ethers } from 'ethers';
-import { getNetworkConfig } from '@/contracts/swnsContract';
+import { getNetworkConfig, ETHEREUM_NETWORK } from '@/contracts/swnsContract';
 
 interface SendTokensProps {
   swnsService: SWNSService | null;
@@ -28,10 +27,11 @@ export const SendTokens = ({
   const [sendAmount, setSendAmount] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [resolvedAddress, setResolvedAddress] = useState<string | null>(null);
-
-  // Get current network config to display correct currency
-  const networkConfig = chainId ? getNetworkConfig(chainId) : null;
-  const currencySymbol = networkConfig?.symbol || 'ETH';
+  const [isResolving, setIsResolving] = useState(false);
+  
+  const currentNetwork = chainId ? getNetworkConfig(chainId) : null;
+  const currencySymbol = currentNetwork?.symbol || 'ETH';
+  const isMainnet = chainId === ETHEREUM_NETWORK.chainId;
 
   const resolveName = async (name: string): Promise<string | null> => {
     if (!swnsService) return null;
@@ -105,11 +105,14 @@ export const SendTokens = ({
     }
   };
 
+  // Auto-resolve name when input changes
   useEffect(() => {
     const checkResolution = async () => {
       if (sendToName && swnsService) {
+        setIsResolving(true);
         const address = await resolveName(sendToName);
         setResolvedAddress(address);
+        setIsResolving(false);
       } else {
         setResolvedAddress(null);
       }
@@ -130,6 +133,17 @@ export const SendTokens = ({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {isMainnet && (
+          <div className="bg-yellow-900/30 border border-yellow-700 rounded-lg p-3">
+            <div className="flex items-center gap-2 text-yellow-300">
+              <span className="text-sm font-medium">⚠️ SWNS Not Available on Mainnet</span>
+            </div>
+            <p className="text-yellow-200 text-xs mt-1">
+              Please switch to Taranium Testnet or Sepolia to send tokens using .sw names.
+            </p>
+          </div>
+        )}
+        
         <div className="relative">
           <Input
             placeholder="Recipient username (e.g., friend)"
@@ -153,7 +167,7 @@ export const SendTokens = ({
         
         <Button 
           onClick={sendTokens} 
-          disabled={!sendToName || !sendAmount || isSending || !isConnected}
+          disabled={!sendToName || !sendAmount || isSending || !isConnected || isMainnet}
           className="w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
         >
           {isSending ? 'Sending...' : 'Send Tokens'}

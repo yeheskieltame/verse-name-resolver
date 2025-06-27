@@ -1,5 +1,4 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +7,7 @@ import { toast } from "@/hooks/use-toast";
 import { Heart, Copy, ExternalLink } from 'lucide-react';
 import { ethers } from 'ethers';
 import { useWeb3 } from '@/hooks/useWeb3';
+import { ETHEREUM_NETWORK } from '@/contracts/swnsContract';
 
 interface DonationAddress {
   network: string;
@@ -29,10 +29,88 @@ const donationAddresses: DonationAddress[] = [
 ];
 
 export const DonationSection = () => {
-  const { signer, isConnected, balance } = useWeb3();
-  const [selectedToken, setSelectedToken] = useState('native');
+  const { signer, isConnected, balance, chainId } = useWeb3();
+  const [selectedToken, setSelectedToken] = useState('eth');
   const [donationAmount, setDonationAmount] = useState('');
   const [isDonating, setIsDonating] = useState(false);
+  const [ethBalance, setEthBalance] = useState('0');
+
+  // Get ETH balance on mainnet
+  const getEthBalance = async () => {
+    if (isConnected && window.ethereum) {
+      try {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const accounts = await provider.send('eth_requestAccounts', []);
+        if (accounts.length > 0) {
+          // Check if we're on mainnet, if not switch temporarily to check balance
+          const currentNetwork = await provider.getNetwork();
+          if (Number(currentNetwork.chainId) === 1) {
+            const balance = await provider.getBalance(accounts[0]);
+            setEthBalance(ethers.formatEther(balance));
+          } else {
+            // Switch to mainnet temporarily to get balance
+            try {
+              await window.ethereum.request({
+                method: 'wallet_switchEthereumChain',
+                params: [{ chainId: '0x1' }], // Mainnet
+              });
+              const balance = await provider.getBalance(accounts[0]);
+              setEthBalance(ethers.formatEther(balance));
+            } catch (error) {
+              console.log('Could not switch to mainnet to check balance');
+              setEthBalance('0');
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error getting ETH balance:', error);
+        setEthBalance('0');
+      }
+    }
+  };
+
+  // Switch to Ethereum Mainnet
+  const switchToMainnet = async () => {
+    if (!window.ethereum) {
+      toast({
+        title: "MetaMask Required",
+        description: "Please install MetaMask to donate with ETH",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    try {
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: '0x1' }], // Mainnet
+      });
+      
+      toast({
+        title: "Switched to Mainnet! 🎉",
+        description: "You're now on Ethereum Mainnet for donation",
+      });
+      
+      // Refresh balance after switch
+      setTimeout(getEthBalance, 1000);
+      return true;
+    } catch (error: any) {
+      console.error('Error switching to mainnet:', error);
+      toast({
+        title: "Network Switch Failed",
+        description: "Could not switch to Ethereum Mainnet",
+        variant: "destructive"
+      });
+      return false;
+    }
+  };
+
+  // Load ETH balance when connected
+  useEffect(() => {
+    if (isConnected) {
+      getEthBalance();
+    }
+  }, [isConnected]);
 
   const copyToClipboard = (text: string, network: string) => {
     navigator.clipboard.writeText(text);
@@ -61,13 +139,23 @@ export const DonationSection = () => {
       return;
     }
 
+    // Check if we're on mainnet, if not switch first
+    if (chainId !== 1) {
+      const switched = await switchToMainnet();
+      if (!switched) return;
+    }
+
     setIsDonating(true);
 
     try {
       const amount = ethers.parseEther(donationAmount);
       const evmAddress = donationAddresses[0].address;
 
-      const tx = await signer.sendTransaction({
+      // Create a new provider for mainnet to ensure we're on the right network
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const mainnetSigner = await provider.getSigner();
+
+      const tx = await mainnetSigner.sendTransaction({
         to: evmAddress,
         value: amount
       });
@@ -81,10 +169,12 @@ export const DonationSection = () => {
       
       toast({
         title: "Donation Confirmed! 🎉",
-        description: `Successfully donated ${donationAmount} TARAN`,
+        description: `Successfully donated ${donationAmount} ETH`,
       });
 
       setDonationAmount('');
+      // Refresh ETH balance
+      getEthBalance();
       
     } catch (error: any) {
       console.error('Donation error:', error);
@@ -143,7 +233,7 @@ export const DonationSection = () => {
 
           {/* Quick Donation Form */}
           <div className="bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-lg p-6 border border-white/20">
-            <h3 className="text-white font-semibold text-lg mb-4">Quick Donation</h3>
+            <h3 className="text-white font-semibold text-lg mb-4">Quick Donation (Ethereum Mainnet)</h3>
             <div className="space-y-4">
               <div>
                 <label className="text-purple-200 text-sm mb-2 block">Token</label>
@@ -152,7 +242,7 @@ export const DonationSection = () => {
                     <SelectValue placeholder="Select token" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="native">TARAN (Native)</SelectItem>
+                    <SelectItem value="eth">ETH (Ethereum Mainnet)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -167,9 +257,26 @@ export const DonationSection = () => {
                   onChange={(e) => setDonationAmount(e.target.value)}
                   className="bg-white/10 border-white/20 text-white placeholder:text-purple-300"
                 />
-                <p className="text-purple-300 text-xs mt-1">
-                  Your balance: {parseFloat(balance).toFixed(4)} TARAN
-                </p>
+                <div className="flex justify-between items-center mt-1">
+                  <p className="text-purple-300 text-xs">
+                    ETH Balance: {parseFloat(ethBalance).toFixed(4)} ETH
+                  </p>
+                  {chainId !== 1 && (
+                    <Button
+                      onClick={switchToMainnet}
+                      variant="outline"
+                      size="sm"
+                      className="bg-blue-500/20 border-blue-400/50 text-blue-300 hover:bg-blue-500/30 text-xs"
+                    >
+                      Switch to Mainnet
+                    </Button>
+                  )}
+                </div>
+                {chainId !== 1 && (
+                  <p className="text-yellow-400 text-xs mt-1">
+                    ⚠️ You need to be on Ethereum Mainnet to donate with ETH
+                  </p>
+                )}
               </div>
 
               <Button
@@ -182,7 +289,7 @@ export const DonationSection = () => {
                 ) : (
                   <>
                     <Heart className="w-4 h-4 mr-2" />
-                    Donate {donationAmount && `${donationAmount} TARAN`}
+                    Donate {donationAmount && `${donationAmount} ETH`}
                   </>
                 )}
               </Button>

@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { 
   TARANIUM_NETWORK, 
   SEPOLIA_NETWORK, 
+  ETHEREUM_NETWORK,
   getContractAddress,
   getNetworkConfig 
 } from '@/contracts/swnsContract';
@@ -35,7 +36,8 @@ export const NetworkInfo = ({ chainId, isConnected }: NetworkInfoProps) => {
 
   const networkConfig = getNetworkConfig(chainId);
   const contractAddress = getContractAddress(chainId);
-  const isSupported = chainId === TARANIUM_NETWORK.chainId || chainId === SEPOLIA_NETWORK.chainId;
+  const isSupported = chainId === TARANIUM_NETWORK.chainId || chainId === SEPOLIA_NETWORK.chainId || chainId === ETHEREUM_NETWORK.chainId;
+  const hasSWNS = chainId === TARANIUM_NETWORK.chainId || chainId === SEPOLIA_NETWORK.chainId;
 
   return (
     <Card className={`mb-6 ${isSupported ? 'bg-green-900/20 border-green-700' : 'bg-yellow-900/20 border-yellow-700'}`}>
@@ -68,7 +70,11 @@ export const NetworkInfo = ({ chainId, isConnected }: NetworkInfoProps) => {
             <h4 className="text-purple-200 text-sm font-medium mb-1">Contract Address</h4>
             <div className="flex items-center gap-2">
               <Link className="w-4 h-4 text-purple-400" />
-              <p className="text-white font-mono text-sm break-all">{contractAddress}</p>
+              {hasSWNS ? (
+                <p className="text-white font-mono text-sm break-all">{contractAddress}</p>
+              ) : (
+                <p className="text-gray-400 text-sm">No SWNS contract (Donations only)</p>
+              )}
             </div>
           </div>
         </div>
@@ -80,7 +86,19 @@ export const NetworkInfo = ({ chainId, isConnected }: NetworkInfoProps) => {
               <p className="text-sm font-medium">Unsupported Network</p>
             </div>
             <p className="text-yellow-200 text-xs mt-1">
-              Please switch to Taranium Testnet or Sepolia to use the SWNS service.
+              Please switch to Taranium Testnet, Sepolia, or Ethereum Mainnet.
+            </p>
+          </div>
+        )}
+
+        {chainId === ETHEREUM_NETWORK.chainId && (
+          <div className="bg-blue-900/30 border border-blue-700 rounded-lg p-3 mt-4">
+            <div className="flex items-center gap-2 text-blue-300">
+              <Globe className="w-4 h-4" />
+              <p className="text-sm font-medium">Ethereum Mainnet</p>
+            </div>
+            <p className="text-blue-200 text-xs mt-1">
+              Mainnet is supported for donations only. Use Taranium or Sepolia for SWNS features.
             </p>
           </div>
         )}

@@ -11,6 +11,7 @@ import { Wallet, Globe, AlertCircle, ChevronDown } from 'lucide-react';
 import { 
   TARANIUM_NETWORK, 
   SEPOLIA_NETWORK, 
+  ETHEREUM_NETWORK,
   SUPPORTED_NETWORKS,
   getNetworkConfig 
 } from '@/contracts/swnsContract';
@@ -117,6 +118,13 @@ export const Header = ({
               >
                 <Globe className="w-4 h-4 mr-2" />
                 {SEPOLIA_NETWORK.name}
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => handleNetworkSwitch(ETHEREUM_NETWORK)}
+                className="text-purple-100 hover:bg-purple-800 cursor-pointer"
+              >
+                <Globe className="w-4 h-4 mr-2" />
+                {ETHEREUM_NETWORK.name}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
