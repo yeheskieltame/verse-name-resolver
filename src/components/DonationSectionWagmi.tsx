@@ -153,115 +153,188 @@ export const DonationSectionWagmi = () => {
   const isOnMainnet = chainId === 1;
 
   return (
-    <Card className="bg-white/10 backdrop-blur-lg border-white/20">
-      <CardHeader>
-        <CardTitle className="text-white flex items-center gap-2">
-          <Heart className="w-5 h-5 text-red-400" />
+    <Card className="bg-white/10 backdrop-blur-lg border-white/20 max-w-5xl mx-auto hover:bg-white/15 transition-all duration-300">
+      <CardHeader className="pb-4 sm:pb-6">
+        <CardTitle className="text-white flex items-center gap-2 text-lg sm:text-xl lg:text-2xl">
+          <div className="w-8 h-8 bg-gradient-to-r from-pink-500 to-red-500 rounded-lg flex items-center justify-center flex-shrink-0">
+            <Heart className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+          </div>
           Support the Project
         </CardTitle>
-        <CardDescription className="text-gray-300">
-          Help us continue building amazing web3 tools
+        <CardDescription className="text-gray-300 text-sm sm:text-base leading-relaxed">
+          Help us continue building amazing web3 tools for the community
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Network Info */}
-        <div className="bg-purple-500/10 border border-purple-400/20 rounded-lg p-4">
-          <h3 className="text-white font-medium mb-2">Current Network</h3>
-          <p className="text-purple-200 text-sm">
-            {isOnMainnet ? 'Ethereum Mainnet' : `Chain ID: ${chainId}`}
-          </p>
-          {!isOnMainnet && (
-            <p className="text-yellow-300 text-xs mt-1">
-              💡 Switch to Ethereum Mainnet for ETH donations
-            </p>
-          )}
-        </div>
-
-        {/* Balance Info */}
-        {isConnected && (
-          <div className="bg-blue-500/10 border border-blue-400/20 rounded-lg p-4">
-            <h3 className="text-white font-medium mb-2">Your Balances</h3>
-            <div className="space-y-1 text-sm">
-              <p className="text-blue-200">
-                Current Network: {parseFloat(currentBalance).toFixed(4)} ETH
-              </p>
-              <p className="text-blue-200">
-                Ethereum Mainnet: {parseFloat(mainnetBalance).toFixed(4)} ETH
-              </p>
+      <CardContent className="space-y-6 sm:space-y-8 lg:space-y-10">
+        <div className="grid lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-10">
+          {/* Left Column - Quick Donation */}
+          <div className="space-y-4 sm:space-y-6">
+            <div className="space-y-2">
+              <h3 className="text-white font-semibold text-base sm:text-lg">Quick Donation</h3>
+              <p className="text-gray-400 text-sm sm:text-base">Send ETH directly from your wallet</p>
             </div>
-          </div>
-        )}
-
-        {/* Donation Section */}
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm text-gray-300">Donation Amount (ETH)</label>
-            <Input
-              type="number"
-              step="0.001"
-              placeholder="0.01"
-              value={donationAmount}
-              onChange={(e) => setDonationAmount(e.target.value)}
-              className="bg-white/5 border-white/20 text-white placeholder:text-gray-400"
-            />
-          </div>
-
-          <Button 
-            onClick={handleDonate}
-            disabled={isDonating || isConfirming || !isConnected || !donationAmount}
-            className="w-full bg-gradient-to-r from-pink-500 to-red-500 text-white hover:from-pink-600 hover:to-red-600"
-          >
-            {isDonating || isConfirming ? 
-              'Processing...' : 
-              `Donate ${donationAmount || '0'} ETH`
-            }
-          </Button>
-        </div>
-
-        {/* Donation Addresses */}
-        <div className="space-y-4">
-          <h3 className="text-white font-medium">Or send directly to:</h3>
-          
-          {donationAddresses.map((donation, index) => (
-            <div key={index} className="bg-gray-500/10 border border-gray-400/20 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">{donation.icon}</span>
-                  <span className="text-white font-medium">{donation.network}</span>
+            
+            {/* Network Info */}
+            <div className="bg-purple-500/10 border border-purple-400/20 rounded-xl p-4 sm:p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-6 h-6 bg-purple-500/30 rounded-full flex items-center justify-center">
+                  <span className="text-purple-300 text-xs font-bold">ⓘ</span>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => openExplorer(donation.address, donation.network)}
-                  className="border-white/30 bg-white/10 text-white hover:bg-white/20 hover:border-white/50"
-                >
-                  <ExternalLink className="w-3 h-3" />
-                </Button>
+                <h4 className="text-white font-medium text-sm sm:text-base">Current Network</h4>
               </div>
-              
-              <div className="flex items-center gap-2">
-                <code className="flex-1 bg-black/20 px-2 py-1 rounded text-xs text-gray-300 break-all">
-                  {donation.address}
-                </code>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => copyToClipboard(donation.address, donation.network)}
-                  className="border-white/30 bg-white/10 text-white hover:bg-white/20 hover:border-white/50"
-                >
-                  {copiedAddress === donation.address ? (
-                    <span className="text-green-400">✓</span>
-                  ) : (
-                    <Copy className="w-3 h-3" />
-                  )}
-                </Button>
-              </div>
+              <p className="text-purple-200 text-sm sm:text-base">
+                {isOnMainnet ? 'Ethereum Mainnet' : `Chain ID: ${chainId}`}
+              </p>
+              {!isOnMainnet && (
+                <p className="text-yellow-300 text-xs sm:text-sm mt-2 flex items-center gap-2">
+                  <span>💡</span>
+                  <span>Switch to Ethereum Mainnet for ETH donations</span>
+                </p>
+              )}
             </div>
-          ))}
+
+            {/* Balance Info */}
+            {isConnected && (
+              <div className="bg-blue-500/10 border border-blue-400/20 rounded-xl p-4 sm:p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-6 h-6 bg-blue-500/30 rounded-full flex items-center justify-center">
+                    <span className="text-blue-300 text-xs font-bold">$</span>
+                  </div>
+                  <h4 className="text-white font-medium text-sm sm:text-base">Your Balances</h4>
+                </div>
+                <div className="space-y-2 text-sm sm:text-base">
+                  <div className="flex justify-between">
+                    <span className="text-blue-200">Current Network:</span>
+                    <span className="text-white font-mono">{parseFloat(currentBalance).toFixed(4)} ETH</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-blue-200">Ethereum Mainnet:</span>
+                    <span className="text-white font-mono">{parseFloat(mainnetBalance).toFixed(4)} ETH</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Donation Form */}
+            <div className="bg-gradient-to-br from-pink-500/10 to-red-500/10 border border-pink-400/20 rounded-xl p-4 sm:p-6 space-y-4">
+              <div className="space-y-3">
+                <label className="text-sm sm:text-base text-gray-300 font-medium block">
+                  Donation Amount (ETH)
+                </label>
+                <Input
+                  type="number"
+                  step="0.001"
+                  placeholder="0.01"
+                  value={donationAmount}
+                  onChange={(e) => setDonationAmount(e.target.value)}
+                  className="bg-white/5 border-white/20 text-white placeholder:text-gray-400 h-11 sm:h-12 text-base focus:ring-2 focus:ring-pink-400/50"
+                />
+              </div>
+
+              <Button 
+                onClick={handleDonate}
+                disabled={isDonating || isConfirming || !isConnected || !donationAmount}
+                size="lg"
+                className="w-full bg-gradient-to-r from-pink-500 to-red-500 text-white hover:from-pink-600 hover:to-red-600 h-12 sm:h-14 text-base sm:text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                {isDonating || isConfirming ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    <span>Processing...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Heart className="w-5 h-5" />
+                    <span>Donate {donationAmount || '0'} ETH</span>
+                  </div>
+                )}
+              </Button>
+              
+              {!isConnected && (
+                <p className="text-center text-gray-400 text-xs sm:text-sm">
+                  Connect your wallet to make donations
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Right Column - Direct Addresses */}
+          <div className="space-y-4 sm:space-y-6">
+            <div className="space-y-2">
+              <h3 className="text-white font-semibold text-base sm:text-lg">Direct Transfer</h3>
+              <p className="text-gray-400 text-sm sm:text-base">Send directly to our addresses</p>
+            </div>
+            
+            {donationAddresses.map((donation, index) => (
+              <div key={index} className="bg-gray-500/10 border border-gray-400/20 rounded-xl p-4 sm:p-5 hover:bg-gray-500/15 transition-colors">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-gradient-to-r from-gray-600 to-gray-700 rounded-lg flex items-center justify-center text-lg">
+                      {donation.icon}
+                    </div>
+                    <div>
+                      <span className="text-white font-medium text-sm sm:text-base block">{donation.network}</span>
+                      <span className="text-gray-400 text-xs">Blockchain network</span>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openExplorer(donation.address, donation.network)}
+                    className="border-white/30 bg-white/10 text-white hover:bg-white/20 hover:border-white/50 self-start sm:self-center"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    <span className="ml-2 hidden sm:inline">View</span>
+                  </Button>
+                </div>
+                
+                <div className="space-y-3">
+                  <div className="bg-black/20 rounded-lg p-3 border border-white/10">
+                    <p className="text-gray-400 text-xs mb-2">Address:</p>
+                    <code className="text-gray-300 text-xs sm:text-sm break-all leading-relaxed block">
+                      {donation.address}
+                    </code>
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => copyToClipboard(donation.address, donation.network)}
+                    className="w-full border-white/30 bg-white/10 text-white hover:bg-white/20 hover:border-white/50"
+                  >
+                    {copiedAddress === donation.address ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-green-500/20 rounded-full flex items-center justify-center">
+                          <span className="text-green-400 text-xs">✓</span>
+                        </div>
+                        <span className="text-green-400">Copied!</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Copy className="w-4 h-4" />
+                        <span>Copy Address</span>
+                      </div>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div className="text-center text-sm text-gray-400">
-          <p>Every donation helps us build better tools for the community! 🙏</p>
+        {/* Thank You Message */}
+        <div className="text-center pt-6 sm:pt-8 border-t border-white/10">
+          <div className="bg-gradient-to-r from-purple-600/20 to-pink-600/20 backdrop-blur-sm border border-white/20 rounded-2xl p-6 sm:p-8 max-w-2xl mx-auto">
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <Heart className="w-5 h-5 text-red-400" />
+              <span className="text-white font-semibold text-base sm:text-lg">Thank You!</span>
+              <Heart className="w-5 h-5 text-red-400" />
+            </div>
+            <p className="text-gray-300 text-sm sm:text-base leading-relaxed">
+              Every donation helps us build better tools for the community and advance the web3 ecosystem. 
+              Your support means the world to us! 🙏
+            </p>
+          </div>
         </div>
       </CardContent>
     </Card>
