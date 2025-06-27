@@ -85,9 +85,3 @@ Setiap kontribusi akan digunakan untuk audit keamanan, pengembangan, dan operasi
     *(Disarankan: Ganti baris ini dengan gambar QR Code alamat Anda)*
 
 Terima kasih telah menjadi bagian dari perjalanan kami untuk membangun Web3 yang lebih baik!
-
-## Bergabung dengan Komunitas SmartVerse
-
-* **Twitter:** [Link ke Twitter Anda]
-* **Discord:** [Link ke Discord Anda]
-* **GitHub:** [Link ke GitHub Proyek Anda]
