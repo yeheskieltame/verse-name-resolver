@@ -8,15 +8,18 @@ import { ChevronDown, Coins, Search, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { type Token } from '@/hooks/useTokenBalances';
+import { ImportTokenDialog } from './ImportTokenDialog';
 
 interface TokenSelectorProps {
   tokens: Token[];
   selectedToken: Token | null;
   onTokenSelect: (token: Token) => void;
+  onTokenImported?: (token: Token) => void;
   disabled?: boolean;
+  importedTokens?: Token[];
 }
 
-export const TokenSelector = ({ tokens, selectedToken, onTokenSelect, disabled }: TokenSelectorProps) => {
+export const TokenSelector = ({ tokens, selectedToken, onTokenSelect, onTokenImported, disabled, importedTokens = [] }: TokenSelectorProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -29,6 +32,14 @@ export const TokenSelector = ({ tokens, selectedToken, onTokenSelect, disabled }
     onTokenSelect(token);
     setIsOpen(false);
     setSearchQuery('');
+  };
+
+  const handleTokenImported = (token: Token) => {
+    if (onTokenImported) {
+      onTokenImported(token);
+    }
+    // Also auto-select the imported token
+    onTokenSelect(token);
   };
 
   const formatBalance = (balance: string) => {
@@ -137,6 +148,11 @@ export const TokenSelector = ({ tokens, selectedToken, onTokenSelect, disabled }
                                   Native
                                 </Badge>
                               )}
+                              {importedTokens.some(imported => imported.address.toLowerCase() === token.address.toLowerCase()) && (
+                                <Badge variant="outline" className="text-xs border-green-400/50 text-green-300">
+                                  Imported
+                                </Badge>
+                              )}
                             </div>
                             <span className="text-sm text-gray-400">{token.name}</span>
                           </div>
@@ -158,10 +174,31 @@ export const TokenSelector = ({ tokens, selectedToken, onTokenSelect, disabled }
             </div>
           </ScrollArea>
 
+          {/* Import Token Section */}
+          {onTokenImported && (
+            <>
+              <Separator className="bg-gray-700" />
+              <div className="p-4 bg-gray-800/30 rounded-lg border border-gray-700/50">
+                <div className="flex flex-col items-center gap-3 text-center">
+                  <div>
+                    <p className="text-sm font-medium text-gray-300 mb-1">Can't find your token?</p>
+                    <p className="text-xs text-gray-400">Import any ERC20 token using its contract address</p>
+                  </div>
+                  <ImportTokenDialog onTokenImported={handleTokenImported} />
+                </div>
+              </div>
+            </>
+          )}
+
           {/* Footer */}
           <div className="pt-4 border-t border-gray-700">
             <div className="flex items-center justify-between text-sm text-gray-400">
-              <span>Showing {filteredTokens.length} tokens</span>
+              <span>
+                Showing {filteredTokens.length} tokens
+                {importedTokens.length > 0 && (
+                  <span className="text-green-400 text-xs ml-1">({importedTokens.length} imported)</span>
+                )}
+              </span>
               <Button
                 variant="ghost"
                 size="sm"

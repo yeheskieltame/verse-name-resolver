@@ -25,15 +25,39 @@ export const CrossChainSendTokens = () => {
   const [isSending, setIsSending] = useState(false);
   const [resolvedAddress, setResolvedAddress] = useState<Address | null>(null);
   const [resolutionError, setResolutionError] = useState<string | null>(null);
+  const [importedTokens, setImportedTokens] = useState<Token[]>([]);
 
   const networkInfo = CrossChainNameService.getNetworkInfo(chainId);
 
+  // Combine default tokens with imported tokens
+  const allTokens = [...tokens, ...importedTokens];
+
+  // Handle imported token
+  const handleTokenImported = (token: Token) => {
+    setImportedTokens(prev => {
+      // Check if token already exists to avoid duplicates
+      const exists = prev.some(t => t.address.toLowerCase() === token.address.toLowerCase());
+      if (exists) return prev;
+      return [...prev, token];
+    });
+    
+    toast({
+      title: "Token Imported! 🎉",
+      description: `${token.symbol} has been added to your token list`,
+    });
+  };
+
   // Auto-select first token when tokens are loaded
   useEffect(() => {
-    if (tokens.length > 0 && !selectedToken) {
-      setSelectedToken(tokens[0]);
+    if (allTokens.length > 0 && !selectedToken) {
+      setSelectedToken(allTokens[0]);
     }
-  }, [tokens, selectedToken]);
+  }, [allTokens, selectedToken]);
+
+  // Reset imported tokens when chain changes
+  useEffect(() => {
+    setImportedTokens([]);
+  }, [chainId]);
 
   // Resolve nama recipient
   const handleResolveRecipient = async () => {
@@ -216,9 +240,11 @@ export const CrossChainSendTokens = () => {
         <div className="space-y-2">
           <Label className="text-white">Select Token</Label>
           <TokenSelector
-            tokens={tokens}
+            tokens={allTokens}
             selectedToken={selectedToken}
             onTokenSelect={setSelectedToken}
+            onTokenImported={handleTokenImported}
+            importedTokens={importedTokens}
             disabled={isLoadingTokens}
           />
           {isLoadingTokens && (
