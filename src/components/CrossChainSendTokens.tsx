@@ -244,7 +244,7 @@ export const CrossChainSendTokens = () => {
               onClick={handleResolveRecipient}
               disabled={!recipient.trim() || isResolving}
               variant="outline"
-              className="border-white/20 hover:bg-white/10 text-white"
+              className="border-blue-400 bg-blue-500 hover:bg-blue-600 text-white font-medium"
             >
               {isResolving ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

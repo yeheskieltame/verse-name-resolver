@@ -79,7 +79,7 @@ export const FeatureCards = () => {
           <div className="text-xs sm:text-sm text-gray-400">Names Registered</div>
         </div>
         <div className="text-center space-y-1 sm:space-y-2">
-          <div className="text-lg sm:text-xl lg:text-2xl font-bold text-white">3</div>
+          <div className="text-lg sm:text-xl lg:text-2xl font-bold text-white">16+</div>
           <div className="text-xs sm:text-sm text-gray-400">Networks Supported</div>
         </div>
         <div className="text-center space-y-1 sm:space-y-2">
