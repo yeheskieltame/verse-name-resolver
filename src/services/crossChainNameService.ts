@@ -285,6 +285,7 @@ export class CrossChainNameService implements CrossChainNameResolver {
   async getUserNames(userAddress: Address): Promise<string[]> {
     try {
       console.log(`🔍 Getting user names for ${userAddress} from Hub Chain (ID: ${this.actualHubChainId})...`);
+      console.log(`📞 Contract address: ${this.hubContractAddress}`);
       console.log(`📞 Calling getNamesByAddress contract function...`);
       
       // Gunakan fungsi getNamesByAddress dari smart contract
@@ -297,6 +298,14 @@ export class CrossChainNameService implements CrossChainNameResolver {
 
       console.log(`📊 Raw contract response:`, names);
       console.log(`📊 User ${userAddress} has ${names.length} names: [${names.join(', ')}]`);
+      
+      if (names.length === 0) {
+        console.log(`⚠️ No names found for user ${userAddress}. Check if:
+        1. User has registered any names
+        2. Names are not expired beyond grace period
+        3. Contract address is correct: ${this.hubContractAddress}
+        4. Hub chain ID is correct: ${this.actualHubChainId}`);
+      }
       
       // Tambahkan suffix .sw ke setiap nama jika belum ada
       const formattedNames = names.map(name => 
@@ -393,21 +402,25 @@ export class CrossChainNameService implements CrossChainNameResolver {
       
       console.log(`📋 Getting name info for "${cleanName}" from Hub Chain...`);
       
-      // Get nama expiration timestamp
+      // Get nama expiration timestamp using getExpirationTime function
       const expirationTimestamp = await this.hubPublicClient.readContract({
         address: this.hubContractAddress,
         abi: SWNS_ABI,
-        functionName: 'nameExpiresAt',
+        functionName: 'getExpirationTime',
         args: [cleanName],
       }) as bigint;
 
-      // Get owner address
+      console.log(`📅 Raw expiration timestamp for "${cleanName}":`, expirationTimestamp.toString());
+
+      // Get owner address using resolve function
       const owner = await this.hubPublicClient.readContract({
         address: this.hubContractAddress,
         abi: SWNS_ABI,
         functionName: 'resolve',
         args: [cleanName],
       }) as Address;
+
+      console.log(`👤 Owner of "${cleanName}":`, owner);
 
       // Convert timestamp to Date
       const expiresAt = new Date(Number(expirationTimestamp) * 1000);

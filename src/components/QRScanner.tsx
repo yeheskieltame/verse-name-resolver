@@ -25,6 +25,7 @@ export const QRScanner = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [qrScanner, setQrScanner] = useState<QrScanner | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [isStartingCamera, setIsStartingCamera] = useState(false);
   const [scannedData, setScannedData] = useState<string>('');
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -43,17 +44,50 @@ export const QRScanner = () => {
   }, [qrScanner]);
 
   const startScanning = async () => {
+    setIsStartingCamera(true);
     try {
       setError('');
       
+      // Wait for video element to be available with retry mechanism
+      let retries = 0;
+      const maxRetries = 10;
+      
+      while (!videoRef.current && retries < maxRetries) {
+        console.log(`📱 Waiting for video element... retry ${retries + 1}/${maxRetries}`);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        retries++;
+      }
+      
       if (!videoRef.current) {
-        throw new Error('Video element not available');
+        throw new Error('Video element not available after waiting');
       }
 
-      // Request camera permission
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' } // Use back camera on mobile
-      });
+      console.log('📱 Video element ready, requesting camera permission...');
+
+      // Request camera permission with fallback options
+      let stream;
+      try {
+        // First try with back camera (preferred for QR scanning)
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            facingMode: 'environment',
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          } 
+        });
+      } catch (error) {
+        console.log('📱 Back camera not available, trying front camera...');
+        // Fallback to front camera
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            facingMode: 'user',
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          } 
+        });
+      }
+
+      console.log('📱 Camera permission granted, initializing QR scanner...');
 
       const scanner = new QrScanner(
         videoRef.current,
@@ -66,12 +100,15 @@ export const QRScanner = () => {
           highlightScanRegion: true,
           highlightCodeOutline: true,
           preferredCamera: 'environment',
+          maxScansPerSecond: 5,
         }
       );
 
       await scanner.start();
       setQrScanner(scanner);
       setIsScanning(true);
+
+      console.log('📱 QR Scanner started successfully');
 
       toast({
         title: "Camera Started 📷",
@@ -86,6 +123,8 @@ export const QRScanner = () => {
         description: "Failed to access camera. Please check permissions.",
         variant: "destructive",
       });
+    } finally {
+      setIsStartingCamera(false);
     }
   };
 
@@ -250,10 +289,15 @@ export const QRScanner = () => {
         {/* Camera Controls */}
         <div className="space-y-4">
           <div className="flex gap-2">
-            {!isScanning ? (
+            {!isScanning && !isStartingCamera ? (
               <Button onClick={startScanning} className="flex items-center gap-2">
                 <Camera className="w-4 h-4" />
                 Start Camera
+              </Button>
+            ) : isStartingCamera ? (
+              <Button disabled className="flex items-center gap-2">
+                <div className="w-4 h-4 animate-spin rounded-full border-2 border-transparent border-t-current" />
+                Starting Camera...
               </Button>
             ) : (
               <Button onClick={stopScanning} variant="destructive" className="flex items-center gap-2">
@@ -273,7 +317,7 @@ export const QRScanner = () => {
         </div>
 
         {/* Camera Video */}
-        {isScanning && (
+        {(isScanning || isStartingCamera) && (
           <div className="space-y-2">
             <div className="relative bg-black rounded-lg overflow-hidden aspect-video">
               <video
@@ -282,14 +326,27 @@ export const QRScanner = () => {
                 autoPlay
                 playsInline
                 muted
+                style={{ width: '100%', height: '100%' }}
               />
-              <div className="absolute inset-0 border-2 border-blue-500 opacity-50" />
-              <div className="absolute top-2 left-2">
-                <Badge variant="secondary">Scanning...</Badge>
-              </div>
+              {isScanning && (
+                <>
+                  <div className="absolute inset-0 border-2 border-blue-500 opacity-50" />
+                  <div className="absolute top-2 left-2">
+                    <Badge variant="secondary">Scanning...</Badge>
+                  </div>
+                </>
+              )}
+              {isStartingCamera && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                  <div className="text-white text-center">
+                    <div className="w-8 h-8 animate-spin rounded-full border-2 border-transparent border-t-white mx-auto mb-2" />
+                    <p>Initializing camera...</p>
+                  </div>
+                </div>
+              )}
             </div>
             <p className="text-sm text-muted-foreground text-center">
-              Point your camera at a payment QR code
+              {isStartingCamera ? "Setting up camera..." : "Point your camera at a payment QR code"}
             </p>
           </div>
         )}
