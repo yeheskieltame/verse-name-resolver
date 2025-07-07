@@ -17,12 +17,13 @@ import {
   type Address,
   type WalletClient,
   type PublicClient,
-  createPublicClient,
-  http
+  http,
+  type Chain
 } from 'viem';
-import { mainnet } from 'wagmi/chains';
-import { HUB_CHAIN_ID } from '@/wagmi';
+import { mainnet, sepolia } from 'wagmi/chains';
+import { HUB_CHAIN_ID, config } from '@/wagmi';
 import { SWNS_ABI, CONTRACTS_BY_CHAIN_ID } from '@/contracts/swnsContract';
+import { getPublicClient } from '@wagmi/core';
 
 export interface CrossChainNameResolver {
   // Resolve nama ke alamat dari Hub Chain
@@ -42,23 +43,36 @@ export interface CrossChainNameResolver {
 }
 
 export class CrossChainNameService implements CrossChainNameResolver {
-  private hubPublicClient: PublicClient;
+  private hubPublicClient: any; // Using any to avoid complex type issues
   private hubContractAddress: Address;
+  private actualHubChainId: number; // Track which chain we're actually using
 
   constructor() {
-    // Buat koneksi read-only permanen ke Hub Chain (Mainnet)
-    this.hubPublicClient = createPublicClient({
-      chain: mainnet,
-      transport: http(),
-    });
-    
+    // Check if Hub Chain contract is deployed
     this.hubContractAddress = CONTRACTS_BY_CHAIN_ID[HUB_CHAIN_ID] as Address;
     
     if (!this.hubContractAddress || this.hubContractAddress === '0x0000000000000000000000000000000000000000') {
       console.warn(`⚠️ Hub Chain contract not deployed yet. Chain ID: ${HUB_CHAIN_ID}`);
+      console.log('🔄 Falling back to Sepolia testnet for username resolution...');
+      
       // For development, fallback to Sepolia
+      this.actualHubChainId = 11155111; // Sepolia
       this.hubContractAddress = CONTRACTS_BY_CHAIN_ID[11155111] as Address; // Sepolia
+    } else {
+      this.actualHubChainId = HUB_CHAIN_ID;
     }
+    
+    // Buat koneksi read-only permanen ke Hub Chain (atau fallback chain)
+    // Menggunakan wagmi's configured client untuk menghindari type conflicts
+    const client = getPublicClient(config, { chainId: this.actualHubChainId as any });
+    if (!client) {
+      throw new Error(`Failed to create public client for Hub Chain (ID: ${this.actualHubChainId})`);
+    }
+    this.hubPublicClient = client;
+    
+    console.log(`✅ CrossChainNameService initialized:`)
+    console.log(`   - Hub Chain ID: ${this.actualHubChainId}`)
+    console.log(`   - Contract Address: ${this.hubContractAddress}`)
   }
 
   /**
@@ -70,7 +84,8 @@ export class CrossChainNameService implements CrossChainNameResolver {
       // Bersihkan nama (hapus .sw jika ada)
       const cleanName = name.endsWith('.sw') ? name.slice(0, -3) : name;
       
-      console.log(`🔍 Resolving name "${cleanName}" from Hub Chain (Mainnet)...`);
+      console.log(`🔍 Resolving name "${cleanName}" from Hub Chain (ID: ${this.actualHubChainId})...`);
+      console.log(`   - Contract Address: ${this.hubContractAddress}`);
       
       // Panggil fungsi resolve di Hub Chain
       const address = await this.hubPublicClient.readContract({
@@ -91,14 +106,51 @@ export class CrossChainNameService implements CrossChainNameResolver {
       
     } catch (error) {
       console.error('Error resolving name:', error);
+      console.log(`❌ Failed to resolve name "${name}":`, error);
       return null;
     }
   }
 
   /**
-   * Register nama di Hub Chain (Sepolia)
-   * Hanya bisa dilakukan sekali per nama
+   * Test function untuk verifikasi koneksi dan contract
    */
+  async testConnection(): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log('🧪 Testing Hub Chain connection...');
+      
+      // Test basic connection
+      const blockNumber = await this.hubPublicClient.getBlockNumber();
+      console.log(`✅ Connected to Hub Chain (ID: ${this.actualHubChainId}), latest block: ${blockNumber}`);
+      
+      // Test contract connection
+      try {
+        const fee = await this.hubPublicClient.readContract({
+          address: this.hubContractAddress,
+          abi: SWNS_ABI,
+          functionName: 'registrationFee',
+        });
+        console.log(`✅ Contract accessible, registration fee: ${fee}`);
+        
+        return { 
+          success: true, 
+          message: `Connected to Hub Chain (ID: ${this.actualHubChainId}), contract working, fee: ${fee}` 
+        };
+      } catch (contractError) {
+        console.error('❌ Contract error:', contractError);
+        return { 
+          success: false, 
+          message: `Contract error: ${contractError}` 
+        };
+      }
+      
+    } catch (error) {
+      console.error('❌ Connection error:', error);
+      return { 
+        success: false, 
+        message: `Connection error: ${error}` 
+      };
+    }
+  }
   async registerNameOnHub(name: string, walletClient: WalletClient): Promise<string> {
     try {
       // Bersihkan nama
@@ -219,7 +271,8 @@ export class CrossChainNameService implements CrossChainNameResolver {
    * Check apakah jaringan saat ini adalah Hub Chain
    */
   static isHubChain(chainId: number): boolean {
-    return chainId === HUB_CHAIN_ID;
+    // Check if it's the configured hub chain OR Sepolia (fallback)
+    return chainId === HUB_CHAIN_ID || chainId === 11155111;
   }
 
   /**

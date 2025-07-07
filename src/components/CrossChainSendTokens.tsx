@@ -1,30 +1,39 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Send, AlertCircle, CheckCircle } from 'lucide-react';
-import { useAccount, useWalletClient, useChainId, useBalance } from 'wagmi';
-import { parseEther, formatEther, type Address } from 'viem';
+import { Loader2, Send, AlertCircle, CheckCircle, ArrowUpRight } from 'lucide-react';
+import { useAccount, useWalletClient, useChainId } from 'wagmi';
+import { parseEther, parseUnits, type Address, erc20Abi } from 'viem';
 import { crossChainNameService, CrossChainNameService } from "@/services/crossChainNameService";
+import { useTokenBalances, type Token } from '@/hooks/useTokenBalances';
+import { TokenSelector } from './TokenSelector';
 
 export const CrossChainSendTokens = () => {
   const { address: userAddress, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
   const chainId = useChainId();
-  const { data: balance } = useBalance({ address: userAddress });
+  const { tokens, isLoading: isLoadingTokens } = useTokenBalances();
   
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
+  const [selectedToken, setSelectedToken] = useState<Token | null>(null);
   const [isResolving, setIsResolving] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [resolvedAddress, setResolvedAddress] = useState<Address | null>(null);
   const [resolutionError, setResolutionError] = useState<string | null>(null);
 
   const networkInfo = CrossChainNameService.getNetworkInfo(chainId);
+
+  // Auto-select first token when tokens are loaded
+  useEffect(() => {
+    if (tokens.length > 0 && !selectedToken) {
+      setSelectedToken(tokens[0]);
+    }
+  }, [tokens, selectedToken]);
 
   // Resolve nama recipient
   const handleResolveRecipient = async () => {
@@ -55,7 +64,7 @@ export const CrossChainSendTokens = () => {
           description: `${recipient} → ${address}`,
         });
       } else {
-        setResolutionError(`Name "${recipient}" not found in the SmartVerse system`);
+        setResolutionError(`Name "${recipient}" not found. Make sure it's registered on the Hub Chain (Sepolia testnet).`);
         setResolvedAddress(null);
       }
     } catch (error) {
@@ -76,29 +85,51 @@ export const CrossChainSendTokens = () => {
 
   // Kirim transaksi
   const handleSendTransaction = async () => {
-    if (!walletClient || !resolvedAddress || !amount) return;
+    if (!walletClient || !resolvedAddress || !amount || !selectedToken) return;
 
     setIsSending(true);
     
     try {
-      const amountWei = parseEther(amount);
+      let txHash: string;
       
-      // Validasi balance
-      if (balance && amountWei > balance.value) {
-        throw new Error('Insufficient balance');
-      }
+      if (selectedToken.isNative) {
+        // Send native token
+        const amountWei = parseEther(amount);
+        
+        // Validasi balance
+        if (amountWei > selectedToken.balance) {
+          throw new Error('Insufficient balance');
+        }
 
-      // Kirim transaksi di jaringan yang sedang aktif
-      console.log(`💸 Sending ${amount} ${networkInfo.name} native token to ${resolvedAddress}`);
-      
-      const txHash = await walletClient.sendTransaction({
-        to: resolvedAddress,
-        value: amountWei,
-      } as any);
+        console.log(`💸 Sending ${amount} ${selectedToken.symbol} to ${resolvedAddress}`);
+        
+        txHash = await walletClient.sendTransaction({
+          to: resolvedAddress,
+          value: amountWei,
+        } as any);
+        
+      } else {
+        // Send ERC20 token
+        const amountWei = parseUnits(amount, selectedToken.decimals);
+        
+        // Validasi balance
+        if (amountWei > selectedToken.balance) {
+          throw new Error('Insufficient balance');
+        }
+
+        console.log(`💸 Sending ${amount} ${selectedToken.symbol} to ${resolvedAddress}`);
+
+        txHash = await walletClient.writeContract({
+          address: selectedToken.address,
+          abi: erc20Abi,
+          functionName: 'transfer',
+          args: [resolvedAddress, amountWei],
+        } as any);
+      }
 
       toast({
         title: "Transaction Sent! 🚀",
-        description: `Sent ${amount} ${balance?.symbol || 'ETH'} to ${recipient}`,
+        description: `Sent ${amount} ${selectedToken.symbol} to ${recipient}`,
       });
 
       console.log(`✅ Transaction sent on ${networkInfo.name}: ${txHash}`);
@@ -121,107 +152,132 @@ export const CrossChainSendTokens = () => {
     }
   };
 
+  // Quick amount buttons
+  const handleQuickAmount = (percentage: number) => {
+    if (!selectedToken) return;
+    
+    const balance = parseFloat(selectedToken.formattedBalance);
+    const quickAmount = (balance * percentage / 100).toFixed(6);
+    setAmount(quickAmount);
+  };
+
   if (!isConnected) {
     return (
-      <Card>
+      <Card className="bg-white/10 backdrop-blur-lg border-white/20">
         <CardHeader>
-          <CardTitle>🌐 Cross-Chain Send</CardTitle>
-          <CardDescription>
-            Send tokens to anyone using their SmartVerse name
+          <CardTitle className="text-white flex items-center gap-2">
+            <Send className="w-5 h-5" />
+            Cross-Chain Token Transfer
+          </CardTitle>
+          <CardDescription className="text-gray-300">
+            Connect your wallet to send tokens using SmartVerse names
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Please connect your wallet to use this feature
-            </AlertDescription>
-          </Alert>
-        </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card>
+    <Card className="bg-white/10 backdrop-blur-lg border-white/20 hover:bg-white/15 transition-all duration-300">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          🌐 Cross-Chain Send
-          <Badge variant="outline" className="ml-auto">
-            {networkInfo.name}
-          </Badge>
-        </CardTitle>
-        <CardDescription>
-          Send tokens to anyone using their SmartVerse name (.sw) - works across all networks!
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Network Info */}
-        <div className="p-3 bg-muted rounded-lg">
-          <div className="flex items-center gap-2 text-sm">
-            <span className="font-medium">Current Network:</span>
-            <Badge variant={networkInfo.isHub ? "default" : "secondary"}>
-              {networkInfo.name}
-            </Badge>
-            <span className="text-muted-foreground">
-              {networkInfo.isHub ? "• Hub Chain" : "• Transaction Chain"}
-            </span>
+        <CardTitle className="text-white flex items-center gap-2">
+          <div className="w-8 h-8 bg-gradient-to-r from-green-400 to-blue-400 rounded-lg flex items-center justify-center">
+            <Send className="w-4 h-4 text-white" />
           </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            {networkInfo.isHub 
-              ? "You're on the Hub Chain - names are resolved and transactions happen here"
-              : "You're on a Transaction Chain - names are resolved from Sepolia, transactions happen here"
-            }
-          </p>
+          Cross-Chain Token Transfer
+        </CardTitle>
+        <CardDescription className="text-gray-300">
+          Send any token to .sw names on <strong>{networkInfo.name}</strong>
+        </CardDescription>
+        
+        {/* Test Connection Button */}
+        <div className="flex items-center gap-2 text-sm text-gray-400">
+          <span>Username resolution via Hub Chain</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              const result = await crossChainNameService.testConnection();
+              toast({
+                title: result.success ? "Connection Test ✅" : "Connection Test ❌",
+                description: result.message,
+                variant: result.success ? "default" : "destructive",
+              });
+            }}
+            className="text-xs h-6 bg-white/10 hover:bg-white/20"
+          >
+            Test Connection
+          </Button>
+        </div>
+      </CardHeader>
+      
+      <CardContent className="space-y-6">
+        {/* Token Selection */}
+        <div className="space-y-2">
+          <Label className="text-white">Select Token</Label>
+          <TokenSelector
+            tokens={tokens}
+            selectedToken={selectedToken}
+            onTokenSelect={setSelectedToken}
+            disabled={isLoadingTokens}
+          />
+          {isLoadingTokens && (
+            <p className="text-xs text-gray-400 flex items-center gap-2">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Loading available tokens...
+            </p>
+          )}
         </div>
 
         {/* Recipient Input */}
         <div className="space-y-2">
-          <Label htmlFor="recipient">Recipient</Label>
+          <Label htmlFor="recipient" className="text-white">Send To</Label>
           <div className="flex gap-2">
             <Input
               id="recipient"
-              placeholder="Enter name (e.g., alice.sw) or address (0x...)"
+              placeholder="alice.sw or 0x123..."
               value={recipient}
               onChange={(e) => handleRecipientChange(e.target.value)}
-              onBlur={handleResolveRecipient}
+              className="flex-1 bg-white/5 border-white/20 text-white placeholder:text-gray-400"
             />
-            <Button 
-              variant="outline" 
+            <Button
               onClick={handleResolveRecipient}
               disabled={!recipient.trim() || isResolving}
+              variant="outline"
+              className="border-white/20 hover:bg-white/10 text-white"
             >
               {isResolving ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                "Resolve"
+                'Resolve'
               )}
             </Button>
+          </div>
+          <div className="text-xs text-gray-400">
+            💡 Tip: Register a name first on Sepolia testnet, then use it here on any chain
           </div>
           
           {/* Resolution Status */}
           {resolvedAddress && (
-            <Alert className="border-green-200 bg-green-50">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-green-800">
-                <strong>✅ Resolved:</strong> {resolvedAddress}
+            <Alert className="bg-green-500/10 border-green-500/20">
+              <CheckCircle className="h-4 w-4 text-green-400" />
+              <AlertDescription className="text-green-300">
+                ✅ Resolved to: <code className="font-mono text-sm bg-green-500/20 px-1 rounded">{resolvedAddress}</code>
               </AlertDescription>
             </Alert>
           )}
           
           {resolutionError && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                {resolutionError}
-              </AlertDescription>
+            <Alert className="bg-red-500/10 border-red-500/20">
+              <AlertCircle className="h-4 w-4 text-red-400" />
+              <AlertDescription className="text-red-300">{resolutionError}</AlertDescription>
             </Alert>
           )}
         </div>
 
         {/* Amount Input */}
         <div className="space-y-2">
-          <Label htmlFor="amount">Amount</Label>
+          <Label htmlFor="amount" className="text-white">Amount</Label>
           <div className="flex gap-2">
             <Input
               id="amount"
@@ -230,25 +286,57 @@ export const CrossChainSendTokens = () => {
               placeholder="0.0"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
+              className="flex-1 bg-white/5 border-white/20 text-white placeholder:text-gray-400"
             />
-            <div className="flex items-center px-3 bg-muted rounded-md">
-              <span className="text-sm font-medium">
-                {balance?.symbol || 'ETH'}
-              </span>
-            </div>
+            {selectedToken && (
+              <div className="flex items-center px-3 bg-white/5 rounded-md border border-white/20">
+                <span className="text-sm font-medium text-white">
+                  {selectedToken.symbol}
+                </span>
+              </div>
+            )}
           </div>
-          {balance && (
-            <p className="text-xs text-muted-foreground">
-              Balance: {formatEther(balance.value)} {balance.symbol}
-            </p>
+          
+          {selectedToken && (
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-gray-400">
+                Balance: {parseFloat(selectedToken.formattedBalance).toFixed(4)} {selectedToken.symbol}
+              </p>
+              <div className="flex gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleQuickAmount(25)}
+                  className="text-xs h-6 px-2 text-gray-400 hover:text-white hover:bg-white/10"
+                >
+                  25%
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleQuickAmount(50)}
+                  className="text-xs h-6 px-2 text-gray-400 hover:text-white hover:bg-white/10"
+                >
+                  50%
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleQuickAmount(100)}
+                  className="text-xs h-6 px-2 text-gray-400 hover:text-white hover:bg-white/10"
+                >
+                  Max
+                </Button>
+              </div>
+            </div>
           )}
         </div>
 
         {/* Send Button */}
         <Button 
           onClick={handleSendTransaction}
-          disabled={!resolvedAddress || !amount || isSending}
-          className="w-full"
+          disabled={!resolvedAddress || !amount || !selectedToken || isSending}
+          className="w-full bg-gradient-to-r from-green-400 to-blue-400 hover:from-green-500 hover:to-blue-500 text-white font-semibold"
         >
           {isSending ? (
             <>
@@ -258,20 +346,21 @@ export const CrossChainSendTokens = () => {
           ) : (
             <>
               <Send className="mr-2 h-4 w-4" />
-              Send {amount} {balance?.symbol || 'ETH'}
+              Send {amount} {selectedToken?.symbol || 'Token'}
             </>
           )}
         </Button>
 
-        {/* Info */}
-        <div className="p-3 bg-blue-50 rounded-lg">
-          <h4 className="font-medium text-blue-900 mb-1">How it works:</h4>
-          <ul className="text-xs text-blue-800 space-y-1">
-            <li>• Names are resolved from Sepolia (Hub Chain) automatically</li>
-            <li>• Transactions happen on your current network ({networkInfo.name})</li>
-            <li>• You can send to any .sw name regardless of your current network</li>
-            <li>• Names are stored as NFTs on the Hub Chain for security</li>
-          </ul>
+        {/* Cross-Chain Info */}
+        <div className="p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
+          <div className="flex items-center gap-2 mb-2">
+            <ArrowUpRight className="w-4 h-4 text-blue-400" />
+            <span className="text-blue-300 font-medium text-sm">Cross-Chain Transfer</span>
+          </div>
+          <p className="text-blue-200 text-xs leading-relaxed">
+            This transaction will be executed on <strong>{networkInfo.name}</strong>. 
+            The recipient name will be resolved from the Hub Chain automatically.
+          </p>
         </div>
       </CardContent>
     </Card>

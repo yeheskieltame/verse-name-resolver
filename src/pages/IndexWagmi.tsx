@@ -51,7 +51,7 @@ export const IndexWagmi = () => {
                 🌐 Cross-Chain SmartVerse
               </h2>
               <p className="text-gray-300 text-sm sm:text-base lg:text-lg max-w-2xl mx-auto leading-relaxed">
-                Register once on Sepolia, use everywhere. Your name works across all supported networks!
+                Register once on Mainnet, use everywhere. Your name works across all supported networks!
               </p>
             </div>
             
