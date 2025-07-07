@@ -50,51 +50,91 @@ export const IndexWagmi = () => {
             {/* Section Title */}
             <div className="text-center space-y-3">
               <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white">
-                🌐 Cross-Chain SmartVerse
+                🌐 Cross-Chain SmartVerse Platform
               </h2>
-              <p className="text-gray-300 text-sm sm:text-base lg:text-lg max-w-2xl mx-auto leading-relaxed">
-                Register once on Hub Chain, use everywhere. Your name works across all supported networks!
+              <p className="text-gray-300 text-sm sm:text-base lg:text-lg max-w-3xl mx-auto leading-relaxed">
+                Complete Web3 naming and payment infrastructure. Register your identity once, use everywhere across all networks.
               </p>
+              <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-6">
+                <div className="category-badge flex items-center gap-2 text-purple-200 bg-purple-500/20 px-4 py-2 rounded-full border border-purple-500/30">
+                  <Globe className="w-4 h-4" />
+                  <span className="text-sm font-medium">Infrastructure Layer</span>
+                </div>
+                <div className="category-badge flex items-center gap-2 text-blue-200 bg-blue-500/20 px-4 py-2 rounded-full border border-blue-500/30">
+                  <QrCode className="w-4 h-4" />
+                  <span className="text-sm font-medium">Payment Features</span>
+                </div>
+              </div>
             </div>
             
             {/* Cross-Chain Status */}
             <CrossChainStatus />
             
-            {/* Main Features Tabs */}
-            <Tabs defaultValue="register" className="w-full">
-              <TabsList className="grid w-full grid-cols-4 mb-8 bg-white/10 backdrop-blur-sm">
-                <TabsTrigger value="register" className="flex items-center gap-2 text-white data-[state=active]:bg-white/20">
-                  <User className="w-4 h-4" />
-                  Register
+            {/* Main Sections */}
+            <Tabs defaultValue="dashboard" className="w-full">
+              <TabsList className="tabs-main grid w-full grid-cols-2 mb-8 bg-white/10 backdrop-blur-sm h-auto">
+                <TabsTrigger value="dashboard" className="flex items-center gap-3 text-white data-[state=active]:bg-white/20 p-4 h-auto flex-col space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Globe className="w-5 h-5" />
+                    <span className="font-semibold">Dashboard</span>
+                  </div>
+                  <span className="text-xs opacity-80">Register & Manage Names</span>
                 </TabsTrigger>
-                <TabsTrigger value="manage" className="flex items-center gap-2 text-white data-[state=active]:bg-white/20">
-                  <Calendar className="w-4 h-4" />
-                  Manage
-                </TabsTrigger>
-                <TabsTrigger value="transfer" className="flex items-center gap-2 text-white data-[state=active]:bg-white/20">
-                  <Send className="w-4 h-4" />
-                  Transfer
-                </TabsTrigger>
-                <TabsTrigger value="payment" className="flex items-center gap-2 text-white data-[state=active]:bg-white/20">
-                  <QrCode className="w-4 h-4" />
-                  QR Pay
+                <TabsTrigger value="smartverse-pay" className="flex items-center gap-3 text-white data-[state=active]:bg-white/20 p-4 h-auto flex-col space-y-1">
+                  <div className="flex items-center gap-2">
+                    <QrCode className="w-5 h-5" />
+                    <span className="font-semibold">SmartVerse Pay</span>
+                  </div>
+                  <span className="text-xs opacity-80">Transfer & QR Payments</span>
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="register" className="w-full">
-                <CrossChainNameRegistration />
+              <TabsContent value="dashboard" className="w-full space-y-6">
+                {/* Dashboard Sub-tabs */}
+                <Tabs defaultValue="register" className="w-full">
+                  <TabsList className="tabs-sub grid w-full grid-cols-2 bg-white/5 backdrop-blur-sm">
+                    <TabsTrigger value="register" className="flex items-center gap-2 text-white data-[state=active]:bg-white/15">
+                      <User className="w-4 h-4" />
+                      Register Names
+                    </TabsTrigger>
+                    <TabsTrigger value="manage" className="flex items-center gap-2 text-white data-[state=active]:bg-white/15">
+                      <Calendar className="w-4 h-4" />
+                      Manage Names
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="register" className="w-full mt-6">
+                    <CrossChainNameRegistration />
+                  </TabsContent>
+
+                  <TabsContent value="manage" className="w-full mt-6">
+                    <NameExpirationStatus />
+                  </TabsContent>
+                </Tabs>
               </TabsContent>
 
-              <TabsContent value="manage" className="w-full">
-                <NameExpirationStatus />
-              </TabsContent>
+              <TabsContent value="smartverse-pay" className="w-full space-y-6">
+                {/* SmartVerse Pay Sub-tabs */}
+                <Tabs defaultValue="transfer" className="w-full">
+                  <TabsList className="tabs-sub grid w-full grid-cols-2 bg-white/5 backdrop-blur-sm">
+                    <TabsTrigger value="transfer" className="flex items-center gap-2 text-white data-[state=active]:bg-white/15">
+                      <Send className="w-4 h-4" />
+                      Send Tokens
+                    </TabsTrigger>
+                    <TabsTrigger value="qr-pay" className="flex items-center gap-2 text-white data-[state=active]:bg-white/15">
+                      <QrCode className="w-4 h-4" />
+                      QR Payment
+                    </TabsTrigger>
+                  </TabsList>
 
-              <TabsContent value="transfer" className="w-full">
-                <CrossChainSendTokens />
-              </TabsContent>
+                  <TabsContent value="transfer" className="w-full mt-6">
+                    <CrossChainSendTokens />
+                  </TabsContent>
 
-              <TabsContent value="payment" className="w-full">
-                <SmartVersePay />
+                  <TabsContent value="qr-pay" className="w-full mt-6">
+                    <SmartVersePay />
+                  </TabsContent>
+                </Tabs>
               </TabsContent>
             </Tabs>
           </div>
