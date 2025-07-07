@@ -1,9 +1,51 @@
 
 // Contract addresses for different networks
 export const NETWORK_CONTRACTS = {
+  // Mainnet chains
+  MAINNET: "0x0000000000000000000000000000000000000000", // TODO: Deploy Hub Chain contract
+  POLYGON: "0x0000000000000000000000000000000000000000", // Transaction chain only
+  BASE: "0x0000000000000000000000000000000000000000", // Transaction chain only
+  ARBITRUM: "0x0000000000000000000000000000000000000000", // Transaction chain only
+  OPTIMISM: "0x0000000000000000000000000000000000000000", // Transaction chain only
+  BSC: "0x0000000000000000000000000000000000000000", // Transaction chain only
+  AVALANCHE: "0x0000000000000000000000000000000000000000", // Transaction chain only
+  FANTOM: "0x0000000000000000000000000000000000000000", // Transaction chain only
+  GNOSIS: "0x0000000000000000000000000000000000000000", // Transaction chain only
+  CELO: "0x0000000000000000000000000000000000000000", // Transaction chain only
+  MOONBEAM: "0x0000000000000000000000000000000000000000", // Transaction chain only
+  CRONOS: "0x0000000000000000000000000000000000000000", // Transaction chain only
+  AURORA: "0x0000000000000000000000000000000000000000", // Transaction chain only
+  
+  // Testnet chains (for development)
   TARANIUM: "0x80DC4e49A04f58611A95cD515a45F8d9C4631203",
-  SEPOLIA: "0x6716724D0C2cD0F60A1455e96f5Edb66C2d3124E",
-  ETHEREUM: "0x0000000000000000000000000000000000000000" // No SWNS contract on mainnet, for donations only
+  SEPOLIA: "0x6716724D0C2cD0F60A1455e96f5Edb66C2d3124E", // Testnet Hub Chain
+  HOLESKY: "0x0000000000000000000000000000000000000000", // Transaction chain only
+  
+  // Legacy alias
+  ETHEREUM: "0x0000000000000000000000000000000000000000" // Same as MAINNET
+};
+
+// Contract addresses by chain ID
+export const CONTRACTS_BY_CHAIN_ID: Record<number, string> = {
+  // Mainnet chains
+  1: NETWORK_CONTRACTS.MAINNET,     // Ethereum
+  137: NETWORK_CONTRACTS.POLYGON,   // Polygon
+  8453: NETWORK_CONTRACTS.BASE,     // Base
+  42161: NETWORK_CONTRACTS.ARBITRUM, // Arbitrum
+  10: NETWORK_CONTRACTS.OPTIMISM,   // Optimism
+  56: NETWORK_CONTRACTS.BSC,        // BNB Smart Chain
+  43114: NETWORK_CONTRACTS.AVALANCHE, // Avalanche
+  250: NETWORK_CONTRACTS.FANTOM,    // Fantom
+  100: NETWORK_CONTRACTS.GNOSIS,    // Gnosis
+  42220: NETWORK_CONTRACTS.CELO,    // Celo
+  1284: NETWORK_CONTRACTS.MOONBEAM, // Moonbeam
+  25: NETWORK_CONTRACTS.CRONOS,     // Cronos
+  1313161554: NETWORK_CONTRACTS.AURORA, // Aurora
+  
+  // Testnet chains
+  9924: NETWORK_CONTRACTS.TARANIUM, // Taranium
+  11155111: NETWORK_CONTRACTS.SEPOLIA, // Sepolia
+  17000: NETWORK_CONTRACTS.HOLESKY, // Holesky
 };
 
 // Legacy export for backward compatibility
@@ -701,10 +743,16 @@ export const getContractAddress = (chainId: number): string => {
       return NETWORK_CONTRACTS.TARANIUM;
     case SEPOLIA_NETWORK.chainId:
       return NETWORK_CONTRACTS.SEPOLIA;
+    case 17000: // Holesky
+      return NETWORK_CONTRACTS.HOLESKY;
+    case 137: // Polygon
+      return NETWORK_CONTRACTS.POLYGON;
+    case 8453: // Base
+      return NETWORK_CONTRACTS.BASE;
     case ETHEREUM_NETWORK.chainId:
       return NETWORK_CONTRACTS.ETHEREUM;
     default:
-      return NETWORK_CONTRACTS.TARANIUM; // fallback
+      return NETWORK_CONTRACTS.SEPOLIA; // fallback to Hub Chain
   }
 };
 

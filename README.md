@@ -1,8 +1,33 @@
-# SmartVerse: Identitas Digital Web3 yang Ramah Manusia
+# SmartVerse: Cross-Chain Web3 Identity Revolution 🌐
 
 **Visi Kami: Menjadikan Web3 dapat diakses oleh semua orang, satu nama pada satu waktu.**
 
-![Project Status](https://img.shields.io/badge/Status-Live%20on%20Taranium%20Testnet-green)
+![Project Status](https://img.shields.io/badge/Status-Cross--Chain%20Live-green)
+![Hub Chain](https://img.shields.io/badge/Hub%20Chain-Sepolia-blue)
+![Supported Networks](https://img.shields.io/badge/Networks-5+-orange)
+
+---
+
+## 🚀 Revolusi Cross-Chain yang Telah Tiba!
+
+Kami dengan bangga mengumumkan fitur **Cross-Chain SmartVerse** - sebuah terobosan yang memungkinkan Anda **mendaftar sekali, gunakan di mana saja**!
+
+### 🌟 Bagaimana Sistem Cross-Chain Bekerja
+
+#### **Hub Chain (Sepolia) - Single Source of Truth**
+- 🏛️ **Sepolia sebagai Hub Chain:** Semua nama username disimpan sebagai NFT di Sepolia
+- 🔐 **Satu Registrasi:** Daftar nama Anda sekali saja di Sepolia
+- 🎯 **Sumber Kebenaran:** Sepolia menjadi database terpusat untuk semua nama .sw
+
+#### **Spoke Chains - Tempat Transaksi Sehari-hari**
+- ⚡ **Holesky, Taranium, Polygon, Base, Ethereum:** Tempat aktivitas ekonomi
+- 💰 **Aset Berada di Sini:** ETH, token, dan aset lainnya ada di jaringan ini
+- 🔄 **Transaksi Langsung:** Kirim uang langsung di jaringan yang sedang aktif
+
+#### **Resolusi Nama Otomatis**
+- 🔍 **Cari di Hub:** Aplikasi otomatis mencari alamat di Sepolia
+- 🎯 **Transaksi di Spoke:** Uang dikirim di jaringan yang sedang Anda gunakan
+- 🌐 **Bekerja Dimana Saja:** Nama .sw bekerja di semua jaringan yang didukung
 
 ---
 
@@ -16,38 +41,110 @@ Dunia Web3 sangat kuat, namun seringkali menakutkan bagi pendatang baru. Hambata
 
 Bayangkan mengirim aset bukan ke `0x8697...1057`, tetapi langsung ke **`budi.sw`** melalui platform SmartVerse. Inilah jembatan yang kami bangun untuk menyambut jutaan pengguna berikutnya ke dunia Web3.
 
-## Inovasi Inti Proyek
+## 🔥 Inovasi Cross-Chain Terbaru
 
-Platform SmartVerse dibangun di atas tiga pilar inovasi utama:
+### 1. **Hub-Spoke Architecture**
+```
+┌─────────────┐         ┌─────────────────┐
+│   SEPOLIA   │◄────────┤   YOUR WALLET   │
+│  (Hub Chain)│         │  (Any Network)  │
+│             │         │                 │
+│ • Store NFTs│         │ • Send Money    │
+│ • Register  │         │ • Daily Activity│
+│ • Resolve   │         │ • Hold Assets   │
+└─────────────┘         └─────────────────┘
+```
 
-### 1. **Identitas Terpadu sebagai NFT**
-Setiap `username.sw` bukan hanya sebuah alias, melainkan sebuah **aset digital unik (NFT)** yang sepenuhnya Anda miliki di dompet Anda. Ini berarti identitas digital Anda di SmartVerse aman, dapat diverifikasi, dan dapat diperjualbelikan di ekosistem Web3 yang lebih luas.
+### 2. **Dual Connection System**
+- 🔗 **Connection 1:** Wallet Anda di jaringan aktif (untuk transaksi)
+- 🔗 **Connection 2:** Koneksi otomatis ke Sepolia (untuk mencari nama)
 
-### 2. **Resolusi Lintas-Jaringan Pragmatis**
-Kami memahami bahwa masa depan adalah multi-jaringan. Arsitektur SmartVerse yang cerdas memungkinkan nama `.sw` yang terdaftar di satu jaringan utama dapat **digunakan untuk menerima transaksi di berbagai jaringan EVM yang kami dukung**. DApp kami secara otomatis menerjemahkan `nama.sw` ke alamat yang benar, menciptakan pengalaman lintas-jaringan yang mulus.
+### 3. **Smart Name Resolution**
+- 🎯 User mengetik `budi.sw` di jaringan manapun
+- 🔍 App mencari alamat `budi.sw` di Sepolia
+- 💸 Transaksi dikirim di jaringan yang sedang aktif
 
-### 3. **Fokus pada Desentralisasi & Kepemilikan Pengguna**
-SmartVerse dirancang untuk menjadi infrastruktur publik. Aturan mainnya diatur oleh smart contract yang transparan di blockchain, bukan oleh satu perusahaan. Anda yang memegang kuncinya, Anda yang memiliki namanya.
+---
 
-## Fitur Saat Ini (MVP di Taranium Testnet)
+## 🌐 Jaringan yang Didukung
 
-Versi saat ini dari SmartVerse yang berjalan di Taranium Testnet memungkinkan Anda untuk:
-* ✅ **Menghubungkan Wallet:** Terhubung dengan aman menggunakan wallet berbasis browser (seperti MetaMask).
-* ✅ **Mencari Ketersediaan Nama:** Memeriksa apakah nama `.sw` yang Anda inginkan masih tersedia.
-* ✅ **Mendaftarkan Nama `.sw`:** Mengklaim dan me-minting nama `.sw` Anda sebagai NFT langsung ke dompet Anda.
-* ✅ **Mengirim Aset via `.sw`:** Memulai transaksi ke pengguna lain hanya dengan mengetikkan nama `.sw` mereka.
-* ✅ **Melihat Kepemilikan:** Melihat daftar nama `.sw` yang Anda miliki di dasbor sederhana.
+| Jaringan | Peran | Status | Fungsi |
+|----------|-------|--------|--------|
+| **Sepolia** | 🏛️ Hub Chain | ✅ Live | Register nama, resolve alamat |
+| **Holesky** | ⚡ Spoke Chain | ✅ Live | Transaksi sehari-hari |
+| **Taranium** | ⚡ Spoke Chain | ✅ Live | Transaksi sehari-hari |
+| **Polygon** | ⚡ Spoke Chain | ✅ Live | Transaksi sehari-hari |
+| **Base** | ⚡ Spoke Chain | ✅ Live | Transaksi sehari-hari |
+| **Ethereum** | ⚡ Spoke Chain | ✅ Live | Transaksi sehari-hari |
 
-## Alur Pengguna Sederhana
+## Fitur Cross-Chain Saat Ini
 
-1.  **Kunjungi DApp SmartVerse** dan klik "Connect Wallet".
-2.  **Cari** `username-anda.sw` yang Anda inginkan.
-3.  Jika tersedia, klik **"Register"** dan setujui transaksi di wallet Anda.
-4.  Selamat! Anda sekarang dapat membagikan `username-anda.sw` kepada siapa saja untuk menerima pembayaran.
+### ✅ **Registrasi Nama Universal**
+* Daftar di Sepolia sekali saja
+* Nama bekerja di semua jaringan yang didukung
+* NFT tersimpan aman di Hub Chain
+
+### ✅ **Pengiriman Token Cross-Chain**
+* Kirim token ke `nama.sw` dari jaringan manapun
+* App otomatis mencari alamat di Sepolia
+* Transaksi terjadi di jaringan yang sedang aktif
+
+### ✅ **Status Jaringan Real-time**
+* Lihat jaringan yang sedang aktif
+* Indikator Hub Chain vs Spoke Chain
+* Panduan fungsi yang tersedia
+
+### ✅ **Resolusi Nama Otomatis**
+* Cari alamat dari Hub Chain secara otomatis
+* Bekerja dengan nama .sw dan alamat 0x
+* Error handling yang baik
+
+## Alur Pengguna Cross-Chain
+
+### 🎯 **Untuk Registrasi:**
+1. **Hubungkan wallet** di jaringan manapun
+2. **Switch ke Sepolia** jika belum (tombol otomatis tersedia)
+3. **Daftar nama** Anda sekali saja
+4. **Nama bekerja** di semua jaringan!
+
+### 💸 **Untuk Transaksi:**
+1. **Terhubung** di jaringan manapun (Holesky, Taranium, dll)
+2. **Ketik** `nama.sw` penerima
+3. **App mencari** alamat di Sepolia otomatis
+4. **Transaksi dikirim** di jaringan yang sedang aktif
+
+---
+
+## 🔧 Teknologi di Balik Cross-Chain
+
+### **Frontend Architecture:**
+```typescript
+// Dual Connection System
+const hubConnection = createPublicClient({
+  chain: sepolia,
+  transport: http()
+}); // Read-only ke Sepolia
+
+const walletConnection = useWalletClient(); // User's active network
+```
+
+### **Smart Resolution:**
+```typescript
+// Resolusi nama lintas jaringan
+const resolveNameToAddress = async (name: string) => {
+  // Selalu cari di Hub Chain (Sepolia)
+  const address = await hubConnection.readContract({
+    address: SEPOLIA_CONTRACT,
+    functionName: 'resolveNameToAddress',
+    args: [name]
+  });
+  return address;
+};
+```
+
+---
 
 ## Roadmap Pengembangan SmartVerse
-
-Kami memiliki visi besar untuk SmartVerse. Ini adalah perjalanan kami ke depan:
 
 ### 📍 Kuartal 3 2025: Penguatan Fondasi & Keamanan
 * Audit keamanan menyeluruh pada smart contract inti SmartVerse.

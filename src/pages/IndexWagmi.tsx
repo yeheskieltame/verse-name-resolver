@@ -2,49 +2,17 @@ import { useState, useEffect } from 'react';
 import { HeaderWagmi } from '@/components/HeaderWagmi';
 import { HeroSection } from '@/components/HeroSection';
 import { FeatureCards } from '@/components/FeatureCards';
-import { NameRegistrationWagmi } from '@/components/NameRegistrationWagmi';
-import { NameDirectory } from '@/components/NameDirectory';
-import { SendTokensWagmi } from '@/components/SendTokensWagmi';
+import { CrossChainStatus } from '@/components/CrossChainStatus';
+import { CrossChainNameRegistration } from '@/components/CrossChainNameRegistration';
+import { CrossChainSendTokens } from '@/components/CrossChainSendTokens';
+
 import { DonationSectionWagmi } from '@/components/DonationSectionWagmi';
-import { SWNSServiceWagmi } from '@/services/swnsServiceWagmi';
-import { useAccount, useChainId, useWalletClient, usePublicClient } from 'wagmi';
+import { useAccount, useChainId } from 'wagmi';
 import { Globe } from 'lucide-react';
 
 export const IndexWagmi = () => {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
-  const { data: walletClient } = useWalletClient();
-  const publicClient = usePublicClient();
-  
-  const [swnsService, setSWNSService] = useState<SWNSServiceWagmi | null>(null);
-  const [registrationFee, setRegistrationFee] = useState<bigint>(BigInt(0));
-  const [registeredNames, setRegisteredNames] = useState<{ name: string; address: string; owner: string; }[]>([]);
-
-  // Mock function for backward compatibility
-  const updateBalance = async () => {
-    // Balance updates automatically with wagmi
-    return Promise.resolve();
-  };
-
-  // Initialize SWNS service when wallet connects or chain changes
-  useEffect(() => {
-    if (chainId) {
-      const service = new SWNSServiceWagmi(walletClient, publicClient, chainId);
-      setSWNSService(service);
-      
-      // Get registration fee
-      service.getRegistrationFee().then(setRegistrationFee);
-      
-      // Listen to name registration events
-      service.onNameRegistered((name, owner, tokenId) => {
-        setRegisteredNames(prev => [...prev, {
-          name,
-          address: owner,
-          owner
-        }]);
-      });
-    }
-  }, [walletClient, publicClient, chainId]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 relative overflow-x-hidden">
@@ -80,38 +48,24 @@ export const IndexWagmi = () => {
             {/* Section Title */}
             <div className="text-center space-y-3">
               <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white">
-                Manage Your Smart Names
+                🌐 Cross-Chain SmartVerse
               </h2>
               <p className="text-gray-300 text-sm sm:text-base lg:text-lg max-w-2xl mx-auto leading-relaxed">
-                Register, discover, and transfer smart wallet names with ease
+                Register once on Sepolia, use everywhere. Your name works across all supported networks!
               </p>
             </div>
             
-            {/* Name Management Row */}
-            <div className="grid lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-10">
-              <div className="space-y-6 lg:space-y-0">
-                <NameRegistrationWagmi
-                  swnsService={swnsService}
-                  registrationFee={registrationFee}
-                  updateBalance={updateBalance}
-                  chainId={chainId || 9924}
-                />
-              </div>
-              
-              <div className="space-y-6 lg:space-y-0">
-                <NameDirectory 
-                  registeredNames={registeredNames}
-                />
-              </div>
+            {/* Cross-Chain Status */}
+            <CrossChainStatus />
+            
+            {/* Name Registration */}
+            <div className="w-full">
+              <CrossChainNameRegistration />
             </div>
             
             {/* Transfer Section */}
             <div className="w-full">
-              <SendTokensWagmi
-                swnsService={swnsService}
-                updateBalance={updateBalance}
-                chainId={chainId || 9924}
-              />
+              <CrossChainSendTokens />
             </div>
           </div>
         </section>
