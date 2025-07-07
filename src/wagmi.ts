@@ -38,7 +38,7 @@ export const taranium = {
 
 // Hub Chain - tempat penyimpanan nama username (Single Source of Truth)
 // For mainnet: use mainnet, for testnet: use sepolia
-export const HUB_CHAIN_ID = mainnet.id; // Changed to mainnet for production
+export const HUB_CHAIN_ID = sepolia.id; // Using Sepolia for development/testnet
 
 // Spoke Chains - tempat transaksi aktual terjadi (All popular EVM chains)
 export const SPOKE_CHAINS = [

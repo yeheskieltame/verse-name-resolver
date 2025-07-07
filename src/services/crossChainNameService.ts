@@ -18,7 +18,9 @@ import {
   type WalletClient,
   type PublicClient,
   http,
-  type Chain
+  type Chain,
+  parseUnits,
+  formatUnits
 } from 'viem';
 import { mainnet, sepolia } from 'wagmi/chains';
 import { HUB_CHAIN_ID, config } from '@/wagmi';
@@ -40,6 +42,33 @@ export interface CrossChainNameResolver {
   
   // Get semua nama yang terdaftar dari Hub Chain
   getAllRegisteredNames(): Promise<Array<{ name: string; address: Address; owner: Address; tokenId: string }>>;
+  
+  // ========== NEW SUBSCRIPTION FEATURES ==========
+  
+  // Get biaya registrasi dan perpanjangan
+  getRegistrationFee(): Promise<bigint>;
+  getRenewalFee(): Promise<bigint>;
+  
+  // Get info nama (termasuk tanggal kedaluwarsa)
+  getNameInfo(name: string): Promise<{
+    owner: Address;
+    expiresAt: Date;
+    isExpired: boolean;
+    isInGracePeriod: boolean;
+    daysRemaining: number;
+  } | null>;
+  
+  // Perpanjang nama
+  renewName(name: string, walletClient: WalletClient): Promise<string>;
+  
+  // Get semua nama user dengan status kedaluwarsa
+  getUserNamesWithExpiry(userAddress: Address): Promise<Array<{
+    name: string;
+    expiresAt: Date;
+    isExpired: boolean;
+    isInGracePeriod: boolean;
+    daysRemaining: number;
+  }>>;
 }
 
 export class CrossChainNameService implements CrossChainNameResolver {
@@ -156,11 +185,11 @@ export class CrossChainNameService implements CrossChainNameResolver {
       // Bersihkan nama
       const cleanName = name.endsWith('.sw') ? name.slice(0, -3) : name;
       
-      console.log(`📝 Registering name "${cleanName}" on Hub Chain (Sepolia)...`);
+      console.log(`📝 Registering name "${cleanName}" on Hub Chain (ID: ${this.actualHubChainId})...`);
       
-      // Pastikan wallet terhubung ke Hub Chain
-      if (walletClient.chain?.id !== HUB_CHAIN_ID) {
-        throw new Error('Wallet must be connected to Sepolia (Hub Chain) to register names');
+      // Pastikan wallet terhubung ke Hub Chain yang benar
+      if (walletClient.chain?.id !== this.actualHubChainId) {
+        throw new Error(`Wallet must be connected to Hub Chain (ID: ${this.actualHubChainId}) to register names. Current chain: ${walletClient.chain?.id}`);
       }
       
       // Dapatkan alamat wallet
@@ -172,6 +201,8 @@ export class CrossChainNameService implements CrossChainNameResolver {
         abi: SWNS_ABI,
         functionName: 'registrationFee',
       }) as bigint;
+      
+      console.log(`💰 Registration fee: ${registrationFee}, User: ${userAddress}`);
       
       // Kirim transaksi registrasi
       const txHash = await walletClient.writeContract({
@@ -203,13 +234,44 @@ export class CrossChainNameService implements CrossChainNameResolver {
         return { available: false, error: 'Name must be at least 3 characters' };
       }
       
-      // Check apakah nama sudah ada di Hub Chain
-      const address = await this.resolveNameToAddress(cleanName);
-      
-      return { 
-        available: address === null,
-        error: address !== null ? 'Name already taken' : undefined
-      };
+      // Gunakan fungsi isAvailable dari contract untuk check availability
+      try {
+        const isAvailable = await this.hubPublicClient.readContract({
+          address: this.hubContractAddress,
+          abi: SWNS_ABI,
+          functionName: 'isAvailable',
+          args: [cleanName],
+        }) as boolean;
+
+        console.log(`📋 Name "${cleanName}" availability check: ${isAvailable}`);
+        
+        return { 
+          available: isAvailable,
+          error: !isAvailable ? 'Name already taken or in grace period' : undefined
+        };
+        
+      } catch (contractError) {
+        console.error('Contract availability check failed, falling back to resolve method:', contractError);
+        
+        // Fallback: Check dengan resolve method
+        try {
+          const address = await this.resolveNameToAddress(cleanName);
+          return { 
+            available: address === null,
+            error: address !== null ? 'Name already taken' : undefined
+          };
+        } catch (resolveError: any) {
+          // Jika error "Name: Expired", berarti nama available untuk re-registrasi
+          if (resolveError.message && resolveError.message.includes('Name: Expired')) {
+            console.log(`✅ Name "${cleanName}" is expired, available for re-registration`);
+            return { available: true };
+          }
+          
+          // Error lain, consider as not available
+          console.error('Resolve error:', resolveError);
+          return { available: false, error: 'Error checking availability' };
+        }
+      }
       
     } catch (error) {
       console.error('Error checking name availability:', error);
@@ -219,186 +281,430 @@ export class CrossChainNameService implements CrossChainNameResolver {
 
   /**
    * Get semua nama yang dimiliki user di Hub Chain
-   * Sementara menggunakan pendekatan sederhana karena keterbatasan contract
    */
   async getUserNames(userAddress: Address): Promise<string[]> {
     try {
-      console.log(`🔍 Getting names for user ${userAddress} from Hub Chain...`);
+      console.log(`🔍 Getting user names for ${userAddress} from Hub Chain (ID: ${this.actualHubChainId})...`);
+      console.log(`📞 Calling getNamesByAddress contract function...`);
       
-      // Dapatkan balance NFT user
-      const balance = await this.hubPublicClient.readContract({
+      // Gunakan fungsi getNamesByAddress dari smart contract
+      const names = await this.hubPublicClient.readContract({
         address: this.hubContractAddress,
         abi: SWNS_ABI,
-        functionName: 'balanceOf',
+        functionName: 'getNamesByAddress',
         args: [userAddress],
-      }) as bigint;
+      }) as string[];
+
+      console.log(`📊 Raw contract response:`, names);
+      console.log(`📊 User ${userAddress} has ${names.length} names: [${names.join(', ')}]`);
       
-      console.log(`✅ User has ${balance} NFTs`);
+      // Tambahkan suffix .sw ke setiap nama jika belum ada
+      const formattedNames = names.map(name => 
+        name.endsWith('.sw') ? name : `${name}.sw`
+      );
       
-      // Untuk sementara, kita return array kosong jika user memiliki NFT
-      // Implementasi yang lebih lengkap memerlukan fungsi tambahan di contract
-      if (balance > 0) {
-        return [`user-${userAddress.slice(0, 8)}.sw`]; // Placeholder
-      }
+      console.log(`📋 Formatted names with .sw suffix:`, formattedNames);
       
-      return [];
+      return formattedNames;
       
     } catch (error) {
-      console.error('Error getting user names:', error);
+      console.error('❌ Error getting user names:', error);
+      console.error('❌ Contract address:', this.hubContractAddress);
+      console.error('❌ Hub chain ID:', this.actualHubChainId);
       return [];
     }
   }
 
   /**
-   * Get biaya registrasi dari Hub Chain
+   * Get semua nama yang terdaftar dari Hub Chain
+   * Untuk sementara return empty array karena butuh fungsi contract tambahan
+   */
+  async getAllRegisteredNames(): Promise<Array<{ name: string; address: Address; owner: Address; tokenId: string }>> {
+    try {
+      console.log('🔍 Getting all registered names from Hub Chain...');
+      
+      // Untuk implementasi yang lengkap, butuh event atau fungsi tambahan di contract
+      // Sementara return array kosong
+      console.log('ℹ️ getAllRegisteredNames not fully implemented yet - requires contract enhancement');
+      return [];
+      
+    } catch (error) {
+      console.error('❌ Error getting all registered names:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get biaya registrasi (untuk nama baru)
    */
   async getRegistrationFee(): Promise<bigint> {
     try {
+      console.log('💰 Getting registration fee from Hub Chain...');
+      
       const fee = await this.hubPublicClient.readContract({
         address: this.hubContractAddress,
         abi: SWNS_ABI,
         functionName: 'registrationFee',
+        args: [],
       }) as bigint;
-      
+
+      console.log(`💰 Registration fee: ${fee}`);
       return fee;
     } catch (error) {
-      console.error('Error getting registration fee:', error);
+      console.error('❌ Error getting registration fee:', error);
       return BigInt(0);
     }
   }
 
   /**
-   * Check apakah jaringan saat ini adalah Hub Chain
+   * Get biaya perpanjangan (untuk nama yang sudah ada)
    */
-  static isHubChain(chainId: number): boolean {
-    // Check if it's the configured hub chain OR Sepolia (fallback)
-    return chainId === HUB_CHAIN_ID || chainId === 11155111;
-  }
-
-  /**
-   * Get informasi jaringan untuk display
-   */
-  static getNetworkInfo(chainId: number): { name: string; isHub: boolean; isSpoke: boolean } {
-    const isHub = CrossChainNameService.isHubChain(chainId);
-    
-    const networkNames: { [key: number]: string } = {
-      // Mainnet chains
-      1: 'Ethereum',
-      137: 'Polygon',
-      8453: 'Base',
-      42161: 'Arbitrum',
-      10: 'Optimism',
-      56: 'BNB Smart Chain',
-      43114: 'Avalanche',
-      250: 'Fantom',
-      100: 'Gnosis',
-      42220: 'Celo',
-      1284: 'Moonbeam',
-      25: 'Cronos',
-      1313161554: 'Aurora',
-      
-      // Testnet chains
-      11155111: 'Sepolia',
-      17000: 'Holesky',
-      9924: 'Taranium',
-    };
-    
-    return {
-      name: networkNames[chainId] || `Chain ${chainId}`,
-      isHub,
-      isSpoke: !isHub
-    };
-  }
-
-  /**
-   * Get semua nama yang terdaftar dari Hub Chain
-   * Menggunakan pendekatan bertahap untuk menghindari RPC limits
-   */
-  async getAllRegisteredNames(): Promise<Array<{ name: string; address: Address; owner: Address; tokenId: string }>> {
+  async getRenewalFee(): Promise<bigint> {
     try {
-      console.log('🔍 Getting all registered names from Hub Chain events...');
+      console.log('💰 Getting renewal fee from Hub Chain...');
       
-      // Coba query events dengan batching untuk menghindari free tier limits
-      let allEvents: any[] = [];
-      
-      try {
-        // Coba ambil current block
-        const currentBlock = await this.hubPublicClient.getBlockNumber();
-        
-        // Gunakan range yang lebih kecil untuk free tier RPC
-        // Mulai dari 1000 block terakhir dan tingkatkan jika diperlukan
-        const blockRanges = [
-          { from: currentBlock - BigInt(1000), to: currentBlock },
-          { from: currentBlock - BigInt(5000), to: currentBlock - BigInt(1000) },
-          { from: currentBlock - BigInt(10000), to: currentBlock - BigInt(5000) },
-        ];
-        
-        console.log(`📊 Querying events in smaller batches to avoid RPC limits...`);
-        
-        for (const range of blockRanges) {
-          try {
-            console.log(`📊 Querying events from block ${range.from} to ${range.to}`);
-            
-            const registeredEvents = await this.hubPublicClient.getContractEvents({
-              address: this.hubContractAddress,
-              abi: SWNS_ABI,
-              eventName: 'NameRegistered',
-              fromBlock: range.from,
-              toBlock: range.to,
-            });
-            
-            allEvents.push(...registeredEvents);
-            console.log(`📋 Found ${registeredEvents.length} events in this range`);
-            
-            // Jika sudah menemukan events, berhenti di sini untuk menghemat quota
-            if (allEvents.length > 0) {
-              break;
-            }
-            
-          } catch (rangeError) {
-            console.log(`⚠️ Failed to query range ${range.from} to ${range.to}:`, rangeError);
-            // Lanjutkan ke range berikutnya
-          }
-        }
-        
-        console.log(`📋 Total found ${allEvents.length} registration events`);
-        
-      } catch (eventError) {
-        console.log('⚠️ Event query failed completely, returning empty list...');
-        console.log('📋 This is expected if the contract is new or has no registered names');
-        return [];
-      }
-      
-      // Process events jika berhasil
-      const registeredNames: Array<{ name: string; address: Address; owner: Address; tokenId: string }> = [];
-      
-      for (const event of allEvents) {
-        try {
-          const { args } = event;
-          if (args && args.name && args.owner && args.tokenId) {
-            // Langsung gunakan data dari event tanpa re-validation untuk menghindari error
-            registeredNames.push({
-              name: (args.name as string) + '.sw',
-              address: args.owner as Address,
-              owner: args.owner as Address,
-              tokenId: args.tokenId.toString(),
-            });
-          }
-        } catch (error) {
-          console.error('Error processing event:', error);
-        }
-      }
-      
-      console.log(`✅ Processed ${registeredNames.length} registered names from events`);
-      return registeredNames;
-      
+      const fee = await this.hubPublicClient.readContract({
+        address: this.hubContractAddress,
+        abi: SWNS_ABI,
+        functionName: 'renewalFee',
+        args: [],
+      }) as bigint;
+
+      console.log(`💰 Renewal fee: ${fee}`);
+      return fee;
     } catch (error) {
-      console.error('Error getting all registered names:', error);
+      console.error('❌ Error getting renewal fee:', error);
+      return BigInt(0);
+    }
+  }
+
+  /**
+   * Get informasi nama termasuk tanggal kedaluwarsa
+   */
+  async getNameInfo(name: string): Promise<{
+    owner: Address;
+    expiresAt: Date;
+    isExpired: boolean;
+    isInGracePeriod: boolean;
+    daysRemaining: number;
+  } | null> {
+    try {
+      const cleanName = name.endsWith('.sw') ? name.slice(0, -3) : name;
       
-      // Fallback final: return empty array dengan pesan yang informatif
-      console.log('📋 Returning empty list - no names found or contract not accessible');
+      console.log(`📋 Getting name info for "${cleanName}" from Hub Chain...`);
+      
+      // Get nama expiration timestamp
+      const expirationTimestamp = await this.hubPublicClient.readContract({
+        address: this.hubContractAddress,
+        abi: SWNS_ABI,
+        functionName: 'nameExpiresAt',
+        args: [cleanName],
+      }) as bigint;
+
+      // Get owner address
+      const owner = await this.hubPublicClient.readContract({
+        address: this.hubContractAddress,
+        abi: SWNS_ABI,
+        functionName: 'resolve',
+        args: [cleanName],
+      }) as Address;
+
+      // Convert timestamp to Date
+      const expiresAt = new Date(Number(expirationTimestamp) * 1000);
+      const now = new Date();
+      
+      // Calculate days remaining
+      const timeRemaining = expiresAt.getTime() - now.getTime();
+      const daysRemaining = Math.ceil(timeRemaining / (1000 * 60 * 60 * 24));
+      
+      // Check if expired (90 days grace period)
+      const isExpired = daysRemaining < 0;
+      const isInGracePeriod = isExpired && daysRemaining >= -90;
+
+      console.log(`📋 Name "${cleanName}" expires at: ${expiresAt.toISOString()}`);
+      console.log(`📋 Days remaining: ${daysRemaining}`);
+      console.log(`📋 Is expired: ${isExpired}`);
+      console.log(`📋 Is in grace period: ${isInGracePeriod}`);
+
+      return {
+        owner,
+        expiresAt,
+        isExpired,
+        isInGracePeriod,
+        daysRemaining
+      };
+    } catch (error) {
+      console.error(`❌ Error getting name info for "${name}":`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Perpanjang nama yang sudah ada
+   */
+  async renewName(name: string, walletClient: WalletClient): Promise<string> {
+    try {
+      const cleanName = name.endsWith('.sw') ? name.slice(0, -3) : name;
+      
+      console.log(`🔄 Renewing name "${cleanName}" on Hub Chain...`);
+      
+      // Get renewal fee
+      const renewalFee = await this.getRenewalFee();
+      
+      console.log(`💰 Renewal fee: ${renewalFee}`);
+      
+      // Panggil fungsi renew di smart contract
+      const txHash = await walletClient.writeContract({
+        address: this.hubContractAddress,
+        abi: SWNS_ABI,
+        functionName: 'renew',
+        args: [cleanName],
+        value: renewalFee,
+        account: walletClient.account,
+        chain: walletClient.chain,
+      });
+
+      console.log(`✅ Renewal transaction sent: ${txHash}`);
+      return txHash;
+      
+    } catch (error: any) {
+      console.error(`❌ Error renewing name "${name}":`, error);
+      throw new Error(`Failed to renew name: ${error.message || error}`);
+    }
+  }
+
+  /**
+   * Get semua nama user dengan status kedaluwarsa
+   */
+  async getUserNamesWithExpiry(userAddress: Address): Promise<Array<{
+    name: string;
+    expiresAt: Date;
+    isExpired: boolean;
+    isInGracePeriod: boolean;
+    daysRemaining: number;
+  }>> {
+    try {
+      console.log(`👤 Getting user names with expiry for ${userAddress}...`);
+      
+      // Pertama, dapatkan semua nama user
+      const userNames = await this.getUserNames(userAddress);
+      
+      // Kemudian dapatkan info expiry untuk setiap nama
+      const namesWithExpiry = [];
+      
+      for (const name of userNames) {
+        const nameInfo = await this.getNameInfo(name);
+        if (nameInfo) {
+          namesWithExpiry.push({
+            name,
+            expiresAt: nameInfo.expiresAt,
+            isExpired: nameInfo.isExpired,
+            isInGracePeriod: nameInfo.isInGracePeriod,
+            daysRemaining: nameInfo.daysRemaining
+          });
+        }
+      }
+      
+      // Sort berdasarkan tanggal kedaluwarsa (yang paling urgent duluan)
+      namesWithExpiry.sort((a, b) => a.daysRemaining - b.daysRemaining);
+      
+      console.log(`👤 Found ${namesWithExpiry.length} names with expiry info`);
+      
+      return namesWithExpiry;
+    } catch (error) {
+      console.error(`❌ Error getting user names with expiry:`, error);
       return [];
     }
+  }
+
+  // ========== SMARTVERSE PAY FEATURES ==========
+
+  /**
+   * Generate static QR code for receiving any amount
+   * Returns the wallet address as QR-ready string
+   */
+  generateStaticPaymentQR(name: string): Promise<string | null> {
+    // For static QR, just return the resolved address
+    return this.resolveNameToAddress(name);
+  }
+
+  /**
+   * Generate dynamic QR code for specific payment amount
+   * Returns EIP-681 format string for QR code
+   */
+  async generateDynamicPaymentQR(
+    recipientName: string, 
+    amount: string, 
+    tokenAddress?: string,
+    chainId?: number
+  ): Promise<string | null> {
+    try {
+      console.log(`📱 Generating dynamic payment QR for ${recipientName}...`);
+      console.log(`💰 Input amount: ${amount}, Token: ${tokenAddress || 'native'}`);
+      
+      // Resolve nama ke alamat
+      const recipientAddress = await this.resolveNameToAddress(recipientName);
+      if (!recipientAddress) {
+        console.error(`❌ Cannot resolve name: ${recipientName}`);
+        return null;
+      }
+
+      // Convert amount to wei (assuming input is in human-readable format)
+      // For tokens, assume 18 decimals unless specified otherwise
+      let amountInWei: string = '0';
+      
+      if (amount && amount !== '0') {
+        try {
+          // Convert amount dari input user (e.g., "1.5") ke wei
+          const decimals = 18; // Default untuk kebanyakan token dan native ETH
+          amountInWei = parseUnits(amount, decimals).toString();
+          console.log(`💰 Converted ${amount} to ${amountInWei} wei (${decimals} decimals)`);
+        } catch (conversionError) {
+          console.error('❌ Error converting amount to wei:', conversionError);
+          return null;
+        }
+      }
+
+      // Generate EIP-681 format payment URL
+      let paymentUrl = `ethereum:${recipientAddress}`;
+      
+      // Add parameters
+      const params = [];
+      
+      if (amountInWei && amountInWei !== '0') {
+        if (tokenAddress && tokenAddress !== '0x0000000000000000000000000000000000000000') {
+          // For ERC20 tokens - use function call format
+          params.push(`functionName=transfer`);
+          params.push(`args=${recipientAddress},${amountInWei}`);
+        } else {
+          // For native ETH transfers
+          params.push(`value=${amountInWei}`);
+        }
+      }
+      
+      if (chainId) {
+        params.push(`chainId=${chainId}`);
+      }
+      
+      if (params.length > 0) {
+        paymentUrl += `?${params.join('&')}`;
+      }
+      
+      console.log(`📱 Generated payment URL: ${paymentUrl}`);
+      console.log(`📊 Amount in wei: ${amountInWei}`);
+      
+      return paymentUrl;
+    } catch (error) {
+      console.error('❌ Error generating dynamic payment QR:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Parse payment QR code URL to extract payment details
+   */
+  parsePaymentQR(qrData: string): {
+    recipientAddress: string;
+    amount?: string;
+    amountFormatted?: string; // Human-readable amount
+    tokenAddress?: string;
+    chainId?: number;
+  } | null {
+    try {
+      console.log(`🔍 Parsing payment QR: ${qrData}`);
+      
+      // Handle ethereum: URL format
+      if (qrData.startsWith('ethereum:')) {
+        const url = new URL(qrData);
+        const recipientAddress = url.pathname;
+        
+        const result: any = { recipientAddress };
+        
+        // Parse query parameters
+        if (url.searchParams.has('value')) {
+          const amountWei = url.searchParams.get('value');
+          result.amount = amountWei;
+          
+          // Convert wei to human-readable format
+          if (amountWei && amountWei !== '0') {
+            try {
+              const decimals = 18; // Default untuk ETH dan kebanyakan token
+              const formatted = formatUnits(BigInt(amountWei), decimals);
+              result.amountFormatted = formatted;
+              console.log(`💰 Converted ${amountWei} wei to ${formatted} tokens`);
+            } catch (conversionError) {
+              console.error('❌ Error converting wei to readable format:', conversionError);
+              result.amountFormatted = amountWei; // Fallback ke raw value
+            }
+          }
+        }
+        
+        if (url.searchParams.has('address')) {
+          result.tokenAddress = url.searchParams.get('address');
+        }
+        
+        if (url.searchParams.has('chainId')) {
+          result.chainId = parseInt(url.searchParams.get('chainId') || '1');
+        }
+        
+        console.log(`📊 Parsed payment details:`, result);
+        return result;
+      }
+      
+      // Handle plain address format
+      if (qrData.match(/^0x[a-fA-F0-9]{40}$/)) {
+        return { recipientAddress: qrData };
+      }
+      
+      console.error('❌ Invalid QR format');
+      return null;
+    } catch (error) {
+      console.error('❌ Error parsing payment QR:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get network information by chain ID
+   */
+  static getNetworkInfo(chainId: number): { name: string; symbol: string; isHub: boolean } {
+    const networks: Record<number, { name: string; symbol: string; isHub: boolean }> = {
+      // Mainnet chains
+      1: { name: 'Ethereum', symbol: 'ETH', isHub: true },
+      137: { name: 'Polygon', symbol: 'MATIC', isHub: false },
+      8453: { name: 'Base', symbol: 'ETH', isHub: false },
+      42161: { name: 'Arbitrum', symbol: 'ETH', isHub: false },
+      10: { name: 'Optimism', symbol: 'ETH', isHub: false },
+      56: { name: 'BSC', symbol: 'BNB', isHub: false },
+      43114: { name: 'Avalanche', symbol: 'AVAX', isHub: false },
+      250: { name: 'Fantom', symbol: 'FTM', isHub: false },
+      100: { name: 'Gnosis', symbol: 'xDAI', isHub: false },
+      42220: { name: 'Celo', symbol: 'CELO', isHub: false },
+      1284: { name: 'Moonbeam', symbol: 'GLMR', isHub: false },
+      25: { name: 'Cronos', symbol: 'CRO', isHub: false },
+      1313161554: { name: 'Aurora', symbol: 'ETH', isHub: false },
+      
+      // Testnet chains
+      9924: { name: 'Taranium', symbol: 'TARA', isHub: false },
+      11155111: { name: 'Sepolia', symbol: 'ETH', isHub: true }, // Testnet Hub
+      17000: { name: 'Holesky', symbol: 'ETH', isHub: false },
+    };
+
+    return networks[chainId] || { name: 'Unknown', symbol: 'ETH', isHub: false };
+  }
+
+  /**
+   * Check if current chain ID is the Hub Chain
+   */
+  isHubChain(chainId: number): boolean {
+    return chainId === this.actualHubChainId;
+  }
+
+  /**
+   * Get actual Hub Chain ID being used
+   */
+  getActualHubChainId(): number {
+    return this.actualHubChainId;
   }
 }
 

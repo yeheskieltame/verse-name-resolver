@@ -24,10 +24,12 @@ export const CrossChainNameRegistration = () => {
   const [nameAvailable, setNameAvailable] = useState<boolean | null>(null);
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
   const [registrationFee, setRegistrationFee] = useState<bigint | null>(null);
+  const [renewalFee, setRenewalFee] = useState<bigint | null>(null);
   const [userNames, setUserNames] = useState<string[]>([]);
 
   const networkInfo = CrossChainNameService.getNetworkInfo(chainId);
-  const isOnHubChain = networkInfo.isHub;
+  const isOnHubChain = crossChainNameService.isHubChain(chainId);
+  const actualHubChainId = crossChainNameService.getActualHubChainId();
 
   // Load user's existing names
   useEffect(() => {
@@ -36,9 +38,9 @@ export const CrossChainNameRegistration = () => {
     }
   }, [userAddress]);
 
-  // Load registration fee
+  // Load registration and renewal fees
   useEffect(() => {
-    loadRegistrationFee();
+    loadFees();
   }, []);
 
   const loadUserNames = async () => {
@@ -52,12 +54,16 @@ export const CrossChainNameRegistration = () => {
     }
   };
 
-  const loadRegistrationFee = async () => {
+  const loadFees = async () => {
     try {
-      const fee = await crossChainNameService.getRegistrationFee();
-      setRegistrationFee(fee);
+      const [regFee, renFee] = await Promise.all([
+        crossChainNameService.getRegistrationFee(),
+        crossChainNameService.getRenewalFee()
+      ]);
+      setRegistrationFee(regFee);
+      setRenewalFee(renFee);
     } catch (error) {
-      console.error('Error loading registration fee:', error);
+      console.error('Error loading fees:', error);
     }
   };
 
@@ -97,16 +103,16 @@ export const CrossChainNameRegistration = () => {
     if (!switchChain) return;
     
     try {
-      await switchChain({ chainId: HUB_CHAIN_ID });
+      await switchChain({ chainId: actualHubChainId });
       toast({
         title: "Network Switched! 🔄",
-        description: "You're now on Sepolia (Hub Chain). You can register names here.",
+        description: `You're now on the Hub Chain (ID: ${actualHubChainId}). You can register names here.`,
       });
     } catch (error) {
       console.error('Error switching network:', error);
       toast({
         title: "Network Switch Failed",
-        description: "Please manually switch to Sepolia network in your wallet.",
+        description: `Please manually switch to Hub Chain (ID: ${actualHubChainId}) in your wallet.`,
         variant: "destructive",
       });
     }
@@ -298,15 +304,33 @@ export const CrossChainNameRegistration = () => {
             )}
           </div>
 
-          {/* Registration Fee */}
-          {registrationFee !== null && isOnHubChain && (
-            <div className="p-3 bg-blue-50 rounded-lg">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Registration Fee:</span>
-                <Badge variant="outline">
-                  {formatEther(registrationFee)} ETH
-                </Badge>
+          {/* Fee Information */}
+          {(registrationFee !== null || renewalFee !== null) && isOnHubChain && (
+            <div className="p-3 bg-blue-50 rounded-lg space-y-2">
+              <h4 className="text-sm font-medium text-blue-900">💰 Subscription Pricing</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {registrationFee !== null && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">New Registration:</span>
+                    <Badge variant="outline" className="bg-blue-100">
+                      {formatEther(registrationFee)} ETH/year
+                    </Badge>
+                  </div>
+                )}
+                {renewalFee !== null && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Renewal (Save!):</span>
+                    <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
+                      {formatEther(renewalFee)} ETH/year
+                    </Badge>
+                  </div>
+                )}
               </div>
+              {registrationFee !== null && renewalFee !== null && renewalFee < registrationFee && (
+                <p className="text-xs text-green-700 mt-2">
+                  💡 Renewal is cheaper! Save {formatEther(registrationFee - renewalFee)} ETH per year by renewing early.
+                </p>
+              )}
             </div>
           )}
 
@@ -332,12 +356,14 @@ export const CrossChainNameRegistration = () => {
 
           {/* Info */}
           <div className="p-3 bg-blue-50 rounded-lg">
-            <h4 className="font-medium text-blue-900 mb-1">How it works:</h4>
+            <h4 className="font-medium text-blue-900 mb-1">📋 How SmartVerse Names Work:</h4>
             <ul className="text-xs text-blue-800 space-y-1">
-              <li>• Names are registered as NFTs on Sepolia (Hub Chain)</li>
-              <li>• Once registered, your name works across all supported networks</li>
-              <li>• People can send you tokens using your name on any network</li>
-              <li>• You own the name permanently (it's an NFT in your wallet)</li>
+              <li>• <strong>Annual Subscription:</strong> Names are now registered for 1 year periods</li>
+              <li>• <strong>Hub Chain Storage:</strong> Names stored as NFTs on Sepolia (testnet)</li>
+              <li>• <strong>Cross-Chain Usage:</strong> Works across all 16+ supported networks</li>
+              <li>• <strong>Easy Renewals:</strong> Renew before expiry at a lower cost</li>
+              <li>• <strong>Grace Period:</strong> 90 days to renew after expiration</li>
+              <li>• <strong>QR Payments:</strong> Generate QR codes for easy payments</li>
             </ul>
           </div>
         </CardContent>

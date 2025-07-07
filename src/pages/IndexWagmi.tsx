@@ -5,10 +5,12 @@ import { FeatureCards } from '@/components/FeatureCards';
 import { CrossChainStatus } from '@/components/CrossChainStatus';
 import { CrossChainNameRegistration } from '@/components/CrossChainNameRegistration';
 import { CrossChainSendTokens } from '@/components/CrossChainSendTokens';
-
+import { NameExpirationStatus } from '@/components/NameExpirationStatus';
+import { SmartVersePay } from '@/components/SmartVersePay';
 import { DonationSectionWagmi } from '@/components/DonationSectionWagmi';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAccount, useChainId } from 'wagmi';
-import { Globe } from 'lucide-react';
+import { Globe, QrCode, Calendar, Send, User } from 'lucide-react';
 
 export const IndexWagmi = () => {
   const { address, isConnected } = useAccount();
@@ -51,22 +53,50 @@ export const IndexWagmi = () => {
                 🌐 Cross-Chain SmartVerse
               </h2>
               <p className="text-gray-300 text-sm sm:text-base lg:text-lg max-w-2xl mx-auto leading-relaxed">
-                Register once on Mainnet, use everywhere. Your name works across all supported networks!
+                Register once on Hub Chain, use everywhere. Your name works across all supported networks!
               </p>
             </div>
             
             {/* Cross-Chain Status */}
             <CrossChainStatus />
             
-            {/* Name Registration */}
-            <div className="w-full">
-              <CrossChainNameRegistration />
-            </div>
-            
-            {/* Transfer Section */}
-            <div className="w-full">
-              <CrossChainSendTokens />
-            </div>
+            {/* Main Features Tabs */}
+            <Tabs defaultValue="register" className="w-full">
+              <TabsList className="grid w-full grid-cols-4 mb-8 bg-white/10 backdrop-blur-sm">
+                <TabsTrigger value="register" className="flex items-center gap-2 text-white data-[state=active]:bg-white/20">
+                  <User className="w-4 h-4" />
+                  Register
+                </TabsTrigger>
+                <TabsTrigger value="manage" className="flex items-center gap-2 text-white data-[state=active]:bg-white/20">
+                  <Calendar className="w-4 h-4" />
+                  Manage
+                </TabsTrigger>
+                <TabsTrigger value="transfer" className="flex items-center gap-2 text-white data-[state=active]:bg-white/20">
+                  <Send className="w-4 h-4" />
+                  Transfer
+                </TabsTrigger>
+                <TabsTrigger value="payment" className="flex items-center gap-2 text-white data-[state=active]:bg-white/20">
+                  <QrCode className="w-4 h-4" />
+                  QR Pay
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="register" className="w-full">
+                <CrossChainNameRegistration />
+              </TabsContent>
+
+              <TabsContent value="manage" className="w-full">
+                <NameExpirationStatus />
+              </TabsContent>
+
+              <TabsContent value="transfer" className="w-full">
+                <CrossChainSendTokens />
+              </TabsContent>
+
+              <TabsContent value="payment" className="w-full">
+                <SmartVersePay />
+              </TabsContent>
+            </Tabs>
           </div>
         </section>
         
