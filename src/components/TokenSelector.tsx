@@ -56,43 +56,43 @@ export const TokenSelector = ({ tokens, selectedToken, onTokenSelect, onTokenImp
       <DialogTrigger asChild>
         <Button
           variant="outline"
-          className="w-full justify-between h-auto py-3 px-4 bg-white/5 hover:bg-white/10 border-white/20 hover:border-white/30"
+          className="w-full justify-between h-auto py-3 px-4 bg-white/90 hover:bg-white border-amber-200 hover:border-amber-300 text-gray-700"
           disabled={disabled}
         >
           {selectedToken ? (
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full flex items-center justify-center flex-shrink-0">
+              <div className="w-8 h-8 bg-gradient-to-r from-amber-400 to-blue-400 rounded-full flex items-center justify-center flex-shrink-0">
                 <Coins className="w-4 h-4 text-white" />
               </div>
               <div className="flex flex-col items-start">
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-white">{selectedToken.symbol}</span>
+                  <span className="font-medium text-gray-700">{selectedToken.symbol}</span>
                   {selectedToken.isNative && (
-                    <Badge variant="outline" className="text-xs border-blue-400/50 text-blue-300">
+                    <Badge variant="outline" className="text-xs border-amber-400/50 text-amber-600">
                       Native
                     </Badge>
                   )}
                 </div>
-                <span className="text-sm text-gray-400">
+                <span className="text-sm text-gray-500">
                   Balance: {formatBalance(selectedToken.formattedBalance)}
                 </span>
               </div>
             </div>
           ) : (
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center flex-shrink-0">
-                <Coins className="w-4 h-4 text-gray-300" />
+              <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
+                <Coins className="w-4 h-4 text-gray-600" />
               </div>
-              <span className="text-gray-400">Select Token</span>
+              <span className="text-gray-500">Select Token</span>
             </div>
           )}
-          <ChevronDown className="w-4 h-4 text-gray-400" />
+          <ChevronDown className="w-4 h-4 text-gray-500" />
         </Button>
       </DialogTrigger>
       
-      <DialogContent className="sm:max-w-md bg-gray-900 border-gray-700">
+      <DialogContent className="sm:max-w-md bg-white border-amber-200 shadow-2xl">
         <DialogHeader>
-          <DialogTitle className="text-white flex items-center gap-2">
+          <DialogTitle className="text-gray-800 flex items-center gap-2">
             <Coins className="w-5 h-5" />
             Select Token
           </DialogTitle>
@@ -101,18 +101,18 @@ export const TokenSelector = ({ tokens, selectedToken, onTokenSelect, onTokenImp
         <div className="space-y-4">
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
             <Input
               placeholder="Search tokens..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-gray-800 border-gray-600 text-white"
+              className="pl-10 bg-white border-amber-200 text-gray-700"
             />
             {searchQuery && (
               <Button
                 variant="ghost"
                 size="sm"
-                className="absolute right-1 top-1 h-8 w-8 p-0 hover:bg-gray-700"
+                className="absolute right-1 top-1 h-8 w-8 p-0 hover:bg-gray-100 text-gray-500"
                 onClick={() => setSearchQuery('')}
               >
                 <X className="h-4 w-4" />
@@ -124,47 +124,41 @@ export const TokenSelector = ({ tokens, selectedToken, onTokenSelect, onTokenImp
           <ScrollArea className="h-80">
             <div className="space-y-2">
               {filteredTokens.length === 0 ? (
-                <div className="text-center py-8 text-gray-400">
+                <div className="text-center py-8 text-gray-500">
                   {searchQuery ? 'No tokens found' : 'No tokens available'}
                 </div>
               ) : (
                 filteredTokens.map((token) => (
                   <Card
-                    key={token.address}
-                    className="cursor-pointer hover:bg-gray-800 transition-colors bg-gray-800/50 border-gray-700 hover:border-gray-600"
+                    key={`${token.address}-${token.symbol}`}
                     onClick={() => handleTokenSelect(token)}
+                    className="cursor-pointer hover:bg-gray-50 transition-colors bg-white border-amber-200 hover:border-amber-300"
                   >
-                    <CardContent className="p-4">
+                    <CardContent className="p-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full flex items-center justify-center flex-shrink-0">
+                          <div className="w-10 h-10 bg-gradient-to-r from-amber-400 to-blue-400 rounded-full flex items-center justify-center flex-shrink-0">
                             <Coins className="w-5 h-5 text-white" />
                           </div>
                           <div className="flex flex-col">
                             <div className="flex items-center gap-2">
-                              <span className="font-medium text-white">{token.symbol}</span>
+                              <span className="font-medium text-gray-800">{token.symbol}</span>
                               {token.isNative && (
-                                <Badge variant="outline" className="text-xs border-blue-400/50 text-blue-300">
+                                <Badge variant="outline" className="text-xs border-amber-400/50 text-amber-600">
                                   Native
                                 </Badge>
                               )}
-                              {importedTokens.some(imported => imported.address.toLowerCase() === token.address.toLowerCase()) && (
-                                <Badge variant="outline" className="text-xs border-green-400/50 text-green-300">
+                              {importedTokens.some(t => t.address.toLowerCase() === token.address.toLowerCase()) && (
+                                <Badge variant="outline" className="text-xs border-blue-400/50 text-blue-600">
                                   Imported
                                 </Badge>
                               )}
                             </div>
-                            <span className="text-sm text-gray-400">{token.name}</span>
+                            <span className="text-sm text-gray-600">{token.name}</span>
                           </div>
                         </div>
-                        
                         <div className="text-right">
-                          <div className="font-medium text-white">
-                            {formatBalance(token.formattedBalance)}
-                          </div>
-                          <div className="text-sm text-gray-400">
-                            {token.symbol}
-                          </div>
+                          <div className="font-medium text-gray-800">{formatBalance(token.formattedBalance)}</div>
                         </div>
                       </div>
                     </CardContent>
@@ -175,20 +169,18 @@ export const TokenSelector = ({ tokens, selectedToken, onTokenSelect, onTokenImp
           </ScrollArea>
 
           {/* Import Token Section */}
-          {onTokenImported && (
-            <>
-              <Separator className="bg-gray-700" />
-              <div className="p-4 bg-gray-800/30 rounded-lg border border-gray-700/50">
-                <div className="flex flex-col items-center gap-3 text-center">
-                  <div>
-                    <p className="text-sm font-medium text-gray-300 mb-1">Can't find your token?</p>
-                    <p className="text-xs text-gray-400">Import any ERC20 token using its contract address</p>
-                  </div>
-                  <ImportTokenDialog onTokenImported={handleTokenImported} />
+          <div className="pt-4">
+            <Separator className="bg-amber-200" />
+            <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-medium text-gray-800">Can't find your token?</h4>
+                  <p className="text-sm text-gray-600">Import a custom token by contract address</p>
                 </div>
+                <ImportTokenDialog onTokenImported={handleTokenImported} />
               </div>
-            </>
-          )}
+            </div>
+          </div>
 
           {/* Footer */}
           <div className="pt-4 border-t border-gray-700">

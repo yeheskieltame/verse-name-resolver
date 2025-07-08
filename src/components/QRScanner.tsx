@@ -319,7 +319,7 @@ export const QRScanner = () => {
         {/* Camera Video */}
         {(isScanning || isStartingCamera) && (
           <div className="space-y-2">
-            <div className="relative bg-black rounded-lg overflow-hidden aspect-video">
+            <div className="relative bg-gray-900 border-2 border-amber-200 rounded-lg overflow-hidden aspect-video shadow-lg">
               <video
                 ref={videoRef}
                 className="w-full h-full object-cover"
@@ -330,16 +330,16 @@ export const QRScanner = () => {
               />
               {isScanning && (
                 <>
-                  <div className="absolute inset-0 border-2 border-blue-500 opacity-50" />
+                  <div className="absolute inset-0 border-2 border-amber-400 opacity-50" />
                   <div className="absolute top-2 left-2">
-                    <Badge variant="secondary">Scanning...</Badge>
+                    <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-amber-300">Scanning...</Badge>
                   </div>
                 </>
               )}
               {isStartingCamera && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-70">
                   <div className="text-white text-center">
-                    <div className="w-8 h-8 animate-spin rounded-full border-2 border-transparent border-t-white mx-auto mb-2" />
+                    <div className="w-8 h-8 animate-spin rounded-full border-2 border-transparent border-t-amber-400 mx-auto mb-2" />
                     <p>Initializing camera...</p>
                   </div>
                 </div>
@@ -366,8 +366,8 @@ export const QRScanner = () => {
 
             {/* Raw Data */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Raw Data:</label>
-              <div className="p-3 bg-muted rounded-lg text-sm font-mono break-all">
+              <label className="text-sm font-medium text-gray-700">Raw Data:</label>
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm font-mono break-all text-blue-800">
                 {scannedData}
               </div>
             </div>

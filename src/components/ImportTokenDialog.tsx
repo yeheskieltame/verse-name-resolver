@@ -130,46 +130,40 @@ export const ImportTokenDialog = ({ onTokenImported }: ImportTokenDialogProps) =
         <Button
           variant="outline"
           size="sm"
-          className="bg-blue-500 hover:bg-blue-600 text-white border-blue-400"
+          onClick={() => setIsOpen(true)}
+          className="bg-amber-500 hover:bg-amber-600 text-white border-amber-400"
         >
-          <Plus className="w-4 h-4 mr-2" />
-          Import Token
+          <Plus className="w-4 h-4 mr-1" />
+          Import
         </Button>
       </DialogTrigger>
       
-      <DialogContent className="sm:max-w-md bg-gray-900 border-gray-700">
+      <DialogContent className="sm:max-w-md bg-white border-amber-200 shadow-2xl">
         <DialogHeader>
-          <DialogTitle className="text-white flex items-center gap-2">
-            <Plus className="w-5 h-5" />
-            Import Custom Token
-          </DialogTitle>
+          <DialogTitle className="text-gray-800">Import Custom Token</DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4">
-          {/* Token Address Input */}
           <div className="space-y-2">
-            <Label className="text-white">Token Contract Address</Label>
+            <Label htmlFor="tokenAddress" className="text-gray-700">Token Contract Address</Label>
             <Input
+              id="tokenAddress"
               placeholder="0x..."
               value={tokenAddress}
               onChange={(e) => handleAddressChange(e.target.value)}
-              className="bg-gray-800 border-gray-600 text-white"
+              className="bg-white border-amber-200 text-gray-700 placeholder:text-gray-400"
             />
-            <p className="text-xs text-gray-400">
-              Enter the contract address of the ERC20 token you want to add
-            </p>
           </div>
 
-          {/* Validate Button */}
-          <Button
+          <Button 
             onClick={validateAndFetchToken}
             disabled={!tokenAddress.trim() || isLoading}
-            className="w-full bg-blue-500 hover:bg-blue-600"
+            className="w-full bg-amber-500 hover:bg-amber-600 text-white"
           >
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Fetching Token Info...
+                Validating...
               </>
             ) : (
               'Validate Token'
@@ -178,63 +172,54 @@ export const ImportTokenDialog = ({ onTokenImported }: ImportTokenDialogProps) =
 
           {/* Error Display */}
           {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
+            <Alert className="border-red-200 bg-red-50">
+              <AlertCircle className="h-4 w-4 text-red-600" />
+              <AlertDescription className="text-red-700">{error}</AlertDescription>
             </Alert>
           )}
 
           {/* Token Info Display */}
           {tokenInfo && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               <Alert className="border-green-200 bg-green-50">
                 <CheckCircle className="h-4 w-4 text-green-600" />
-                <AlertDescription className="text-green-800">
-                  Token information fetched successfully!
+                <AlertDescription className="text-green-700">
+                  Token found and validated!
                 </AlertDescription>
               </Alert>
-              
-              <div className="bg-gray-800 p-4 rounded-lg space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-300">Name:</span>
-                  <span className="text-white font-medium">{tokenInfo.name}</span>
+
+              <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm font-medium text-gray-700">Name:</span>
+                  <span className="text-sm text-gray-800">{tokenInfo.name}</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-300">Symbol:</span>
-                  <Badge variant="outline" className="text-white border-gray-600">
-                    {tokenInfo.symbol}
-                  </Badge>
+                <div className="flex justify-between">
+                  <span className="text-sm font-medium text-gray-700">Symbol:</span>
+                  <span className="text-sm text-gray-800">{tokenInfo.symbol}</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-300">Decimals:</span>
-                  <span className="text-white">{tokenInfo.decimals}</span>
+                <div className="flex justify-between">
+                  <span className="text-sm font-medium text-gray-700">Decimals:</span>
+                  <span className="text-sm text-gray-800">{tokenInfo.decimals}</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-300">Your Balance:</span>
-                  <span className="text-white font-medium">
-                    {formatUnits(tokenInfo.balance, tokenInfo.decimals)} {tokenInfo.symbol}
-                  </span>
+                <div className="flex justify-between">
+                  <span className="text-sm font-medium text-gray-700">Your Balance:</span>
+                  <span className="text-sm text-gray-800">{formatUnits(tokenInfo.balance, tokenInfo.decimals)}</span>
                 </div>
               </div>
 
-              <Button
+              <Button 
                 onClick={handleImportToken}
-                className="w-full bg-green-500 hover:bg-green-600"
+                className="w-full bg-green-500 hover:bg-green-600 text-white"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Import This Token
+                Import {tokenInfo.symbol}
               </Button>
             </div>
           )}
 
-          {/* Info */}
-          <div className="bg-blue-900/50 p-3 rounded-lg">
-            <h4 className="text-blue-300 font-medium text-sm mb-1">Important:</h4>
-            <ul className="text-xs text-blue-200 space-y-1">
-              <li>• Only import tokens you trust</li>
-              <li>• Verify the contract address from official sources</li>
-              <li>• Imported tokens are only stored for this session</li>
-            </ul>
+          <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
+            <p className="text-xs text-blue-700">
+              <strong>Note:</strong> Only import tokens you trust. Imported tokens will be stored locally and may not be verified.
+            </p>
           </div>
         </div>
       </DialogContent>

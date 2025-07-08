@@ -279,7 +279,7 @@ export const SmartVersePay = () => {
               {/* QR Code Display */}
               {staticQRData && (
                 <div className="text-center space-y-4">
-                  <div className="bg-white p-6 rounded-lg inline-block">
+                  <div className="bg-white border border-slate-200 shadow-sm p-6 rounded-xl inline-block">
                     <QRCodeSVG 
                       value={staticQRData} 
                       size={256}
@@ -289,8 +289,8 @@ export const SmartVersePay = () => {
                   </div>
                   
                   <div className="space-y-2">
-                    <p className="text-sm font-medium">Your Payment Address:</p>
-                    <code className="text-xs bg-gray-100 dark:bg-gray-800 p-2 rounded block break-all">
+                    <p className="text-sm font-medium text-slate-600">Your Payment Address:</p>
+                    <code className="text-xs bg-slate-50 border border-slate-200 text-slate-700 p-3 rounded-lg block break-all">
                       {staticQRData}
                     </code>
                   </div>
@@ -383,7 +383,7 @@ export const SmartVersePay = () => {
               {/* Dynamic QR Display */}
               {dynamicQRData && (
                 <div className="text-center space-y-4">
-                  <div className="bg-white p-6 rounded-lg inline-block">
+                  <div className="bg-white border border-slate-200 shadow-sm p-6 rounded-xl inline-block">
                     <QRCodeSVG 
                       value={dynamicQRData} 
                       size={256}
@@ -396,10 +396,10 @@ export const SmartVersePay = () => {
                     <div className="text-sm font-medium text-green-600">
                       ✅ Payment QR Generated!
                     </div>
-                    <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
-                      <p className="text-sm"><strong>Amount:</strong> {dynamicAmount} {networkInfo.symbol}</p>
-                      <p className="text-sm"><strong>To:</strong> {dynamicRecipient}</p>
-                      <p className="text-sm"><strong>Network:</strong> {networkInfo.name}</p>
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                      <p className="text-sm text-green-700"><strong>Amount:</strong> {dynamicAmount} {networkInfo.symbol}</p>
+                      <p className="text-sm text-green-700"><strong>To:</strong> {dynamicRecipient}</p>
+                      <p className="text-sm text-green-700"><strong>Network:</strong> {networkInfo.name}</p>
                     </div>
                   </div>
 
