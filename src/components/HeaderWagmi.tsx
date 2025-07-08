@@ -1,6 +1,7 @@
+
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { toast } from "@/hooks/use-toast";
-import { Globe, Network } from 'lucide-react';
+import { Globe, Network, Sparkles } from 'lucide-react';
 import { 
   SUPPORTED_NETWORKS,
   getNetworkConfig 
@@ -14,17 +15,18 @@ export const HeaderWagmi = () => {
   const currentNetwork = chainId ? getNetworkConfig(chainId) : null;
 
   return (
-    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4">
+    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 sm:gap-6">
       {/* Logo & Title */}
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="w-10 h-10 sm:w-11 sm:h-11 bg-gradient-to-r from-purple-400 to-pink-400 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
-          <Globe className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+      <div className="flex items-center gap-4 min-w-0">
+        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-purple-500 to-blue-500 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-soft-md">
+          <Globe className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
         </div>
         <div className="min-w-0 flex-1">
-          <h1 className="text-xl sm:text-2xl lg:text-2xl font-bold text-white truncate">
+          <h1 className="text-2xl sm:text-3xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
             SmartVerse
+            <Sparkles className="w-5 h-5 text-purple-500" />
           </h1>
-          <p className="text-purple-200 text-xs sm:text-sm leading-tight">
+          <p className="text-gray-600 text-sm sm:text-base leading-tight">
             Smart Wallet Name Service
           </p>
         </div>
@@ -35,7 +37,7 @@ export const HeaderWagmi = () => {
         {isConnected ? (
           <>
             {/* RainbowKit Connect Button */}
-            <div className="flex justify-center sm:justify-end">
+            <div className="flex justify-center sm:justify-end connect-button-wrapper">
               <ConnectButton 
                 showBalance={true}
                 chainStatus="icon"
@@ -47,14 +49,14 @@ export const HeaderWagmi = () => {
           <>
             {/* Network Info when not connected */}
             {currentNetwork && (
-              <div className="hidden sm:flex items-center gap-2 text-sm text-gray-300 bg-white/5 px-3 py-2 rounded-lg backdrop-blur-sm border border-white/10">
-                <Network className="w-4 h-4" />
+              <div className="hidden sm:flex items-center gap-2 text-sm text-gray-600 bg-gray-50 px-4 py-2 rounded-xl border border-gray-100 shadow-soft">
+                <Network className="w-4 h-4 text-gray-500" />
                 <span>Current: {currentNetwork.name}</span>
               </div>
             )}
             
             {/* RainbowKit Connect Button */}
-            <div className="flex justify-center sm:justify-end">
+            <div className="flex justify-center sm:justify-end connect-button-wrapper">
               <ConnectButton 
                 showBalance={false}
                 chainStatus="icon"
