@@ -18,16 +18,16 @@ export const IndexWagmi = () => {
   const chainId = useChainId();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white via-slate-50 to-blue-50 relative overflow-x-hidden">
-      {/* Background Decorations */}
+    <div className="min-h-screen bg-white relative overflow-x-hidden">
+      {/* Subtle background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 -left-4 w-96 h-96 bg-purple-100 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse"></div>
-        <div className="absolute top-0 -right-4 w-96 h-96 bg-blue-100 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse delay-1000"></div>
-        <div className="absolute -bottom-8 left-20 w-96 h-96 bg-green-100 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse delay-500"></div>
+        <div className="absolute top-0 -left-4 w-96 h-96 bg-purple-50 rounded-full mix-blend-multiply filter blur-3xl opacity-70"></div>
+        <div className="absolute top-0 -right-4 w-96 h-96 bg-blue-50 rounded-full mix-blend-multiply filter blur-3xl opacity-70"></div>
+        <div className="absolute -bottom-8 left-20 w-96 h-96 bg-purple-50 rounded-full mix-blend-multiply filter blur-3xl opacity-50"></div>
       </div>
 
       {/* Header */}
-      <div className="sticky top-0 z-50 backdrop-blur-md bg-white/80 border-b border-gray-100 shadow-soft">
+      <div className="sticky top-0 z-50 backdrop-blur-md bg-white/90 border-b border-gray-200">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <HeaderWagmi />
         </div>
@@ -51,21 +51,21 @@ export const IndexWagmi = () => {
             {/* Section Title */}
             <div className="text-center space-y-4 animate-fade-in">
               <div className="flex items-center justify-center gap-2 mb-4">
-                <Sparkles className="w-6 h-6 text-purple-500" />
-                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-800">
+                <Sparkles className="w-6 h-6 text-purple-600" />
+                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900">
                   Cross-Chain SmartVerse Platform
                 </h2>
-                <Sparkles className="w-6 h-6 text-purple-500" />
+                <Sparkles className="w-6 h-6 text-purple-600" />
               </div>
               <p className="text-gray-600 text-base sm:text-lg lg:text-xl max-w-4xl mx-auto leading-relaxed">
                 Complete Web3 naming and payment infrastructure. Register your identity once, use everywhere across all networks.
               </p>
               <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-8">
-                <div className="category-badge flex items-center gap-2 text-purple-700 bg-purple-50 border-purple-200">
+                <div className="category-badge flex items-center gap-2 text-purple-700">
                   <Globe className="w-4 h-4" />
                   <span className="text-sm font-medium">Infrastructure Layer</span>
                 </div>
-                <div className="category-badge flex items-center gap-2 text-blue-700 bg-blue-50 border-blue-200">
+                <div className="category-badge flex items-center gap-2 text-blue-700">
                   <QrCode className="w-4 h-4" />
                   <span className="text-sm font-medium">Payment Features</span>
                 </div>
@@ -80,14 +80,14 @@ export const IndexWagmi = () => {
             {/* Main Sections */}
             <Tabs defaultValue="dashboard" className="w-full animate-fade-in">
               <TabsList className="tabs-main grid w-full grid-cols-2 mb-12 h-auto p-2">
-                <TabsTrigger value="dashboard" className="flex items-center gap-3 text-gray-700 data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:shadow-soft p-6 h-auto flex-col space-y-2 rounded-xl">
+                <TabsTrigger value="dashboard" className="flex items-center gap-3 text-gray-700 data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700 data-[state=active]:shadow-sm p-6 h-auto flex-col space-y-2 rounded-xl">
                   <div className="flex items-center gap-2">
                     <Globe className="w-5 h-5" />
                     <span className="font-semibold text-base">Dashboard</span>
                   </div>
                   <span className="text-xs opacity-75">Register & Manage Names</span>
                 </TabsTrigger>
-                <TabsTrigger value="smartverse-pay" className="flex items-center gap-3 text-gray-700 data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:shadow-soft p-6 h-auto flex-col space-y-2 rounded-xl">
+                <TabsTrigger value="smartverse-pay" className="flex items-center gap-3 text-gray-700 data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700 data-[state=active]:shadow-sm p-6 h-auto flex-col space-y-2 rounded-xl">
                   <div className="flex items-center gap-2">
                     <QrCode className="w-5 h-5" />
                     <span className="font-semibold text-base">SmartVerse Pay</span>
@@ -100,11 +100,11 @@ export const IndexWagmi = () => {
                 {/* Dashboard Sub-tabs */}
                 <Tabs defaultValue="register" className="w-full">
                   <TabsList className="tabs-sub grid w-full grid-cols-2 p-1">
-                    <TabsTrigger value="register" className="flex items-center gap-2 text-gray-600 data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:shadow-soft rounded-lg">
+                    <TabsTrigger value="register" className="flex items-center gap-2 text-gray-600 data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:shadow-sm rounded-lg">
                       <User className="w-4 h-4" />
                       Register Names
                     </TabsTrigger>
-                    <TabsTrigger value="manage" className="flex items-center gap-2 text-gray-600 data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:shadow-soft rounded-lg">
+                    <TabsTrigger value="manage" className="flex items-center gap-2 text-gray-600 data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:shadow-sm rounded-lg">
                       <Calendar className="w-4 h-4" />
                       Manage Names
                     </TabsTrigger>
@@ -124,11 +124,11 @@ export const IndexWagmi = () => {
                 {/* SmartVerse Pay Sub-tabs */}
                 <Tabs defaultValue="transfer" className="w-full">
                   <TabsList className="tabs-sub grid w-full grid-cols-2 p-1">
-                    <TabsTrigger value="transfer" className="flex items-center gap-2 text-gray-600 data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:shadow-soft rounded-lg">
+                    <TabsTrigger value="transfer" className="flex items-center gap-2 text-gray-600 data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:shadow-sm rounded-lg">
                       <Send className="w-4 h-4" />
                       Send Tokens
                     </TabsTrigger>
-                    <TabsTrigger value="qr-pay" className="flex items-center gap-2 text-gray-600 data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:shadow-soft rounded-lg">
+                    <TabsTrigger value="qr-pay" className="flex items-center gap-2 text-gray-600 data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:shadow-sm rounded-lg">
                       <QrCode className="w-4 h-4" />
                       QR Payment
                     </TabsTrigger>
@@ -151,7 +151,7 @@ export const IndexWagmi = () => {
         <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20">
           <div className="space-y-8 sm:space-y-12">
             <div className="text-center space-y-4 animate-fade-in">
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-800">
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900">
                 Support Development
               </h2>
               <p className="text-gray-600 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
@@ -166,14 +166,14 @@ export const IndexWagmi = () => {
       </main>
       
       {/* Footer */}
-      <footer className="relative z-10 border-t border-gray-100 bg-white/80 backdrop-blur-sm">
+      <footer className="relative z-10 border-t border-gray-200 bg-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center space-y-6">
             <div className="flex items-center justify-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl flex items-center justify-center shadow-soft">
+              <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl flex items-center justify-center shadow-sm">
                 <Globe className="w-6 h-6 text-white" />
               </div>
-              <span className="text-gray-800 font-bold text-xl">SmartVerse</span>
+              <span className="text-gray-900 font-bold text-xl">SmartVerse</span>
             </div>
             <p className="text-gray-500 text-sm max-w-md mx-auto">
               © 2025 SmartVerse. Building the future of web3 naming services with modern, clean design.

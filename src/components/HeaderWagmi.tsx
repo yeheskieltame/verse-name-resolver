@@ -18,11 +18,11 @@ export const HeaderWagmi = () => {
     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 sm:gap-6">
       {/* Logo & Title */}
       <div className="flex items-center gap-4 min-w-0">
-        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-purple-500 to-blue-500 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-soft-md">
+        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-r from-purple-500 to-blue-500 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm">
           <Globe className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
         </div>
         <div className="min-w-0 flex-1">
-          <h1 className="text-2xl sm:text-3xl lg:text-3xl font-bold text-gray-800 flex items-center gap-2">
+          <h1 className="text-2xl sm:text-3xl lg:text-3xl font-bold text-gray-900 flex items-center gap-2">
             SmartVerse
             <Sparkles className="w-5 h-5 text-purple-500" />
           </h1>
@@ -49,7 +49,7 @@ export const HeaderWagmi = () => {
           <>
             {/* Network Info when not connected */}
             {currentNetwork && (
-              <div className="hidden sm:flex items-center gap-2 text-sm text-gray-600 bg-gray-50 px-4 py-2 rounded-xl border border-gray-100 shadow-soft">
+              <div className="hidden sm:flex items-center gap-2 text-sm text-gray-600 bg-gray-50 px-4 py-2 rounded-xl border border-gray-200 shadow-sm">
                 <Network className="w-4 h-4 text-gray-500" />
                 <span>Current: {currentNetwork.name}</span>
               </div>
