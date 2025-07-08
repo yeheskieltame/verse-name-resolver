@@ -65,7 +65,7 @@ const NotFound = () => {
             </Link>
             <span className="text-gray-500">•</span>
             <Link to="/pay" className="text-purple-300 hover:text-purple-200 transition-colors">
-              SmartVerse Pay
+              Cross-Chain Pay
             </Link>
           </div>
         </div>

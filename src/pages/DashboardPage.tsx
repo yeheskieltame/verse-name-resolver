@@ -9,6 +9,13 @@ export const DashboardPage = () => {
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
       {/* Page Header */}
       <div className="text-center space-y-6 mb-8 sm:mb-12">
+        <div className="flex justify-center mb-6">
+          <img 
+            src="/smartverse.svg" 
+            alt="Platform Logo" 
+            className="h-16 w-auto sm:h-20"
+          />
+        </div>
         <div className="space-y-4">
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900">
             🌐 Dashboard

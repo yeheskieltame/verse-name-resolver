@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { Globe, QrCode, Home, Menu, X } from 'lucide-react';
+import { QrCode, Home, Menu, X, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export const Navigation = () => {
@@ -10,8 +10,8 @@ export const Navigation = () => {
 
   const navItems = [
     { path: '/', label: 'Home', icon: Home, description: 'Landing Page' },
-    { path: '/dashboard', label: 'Dashboard', icon: Globe, description: 'Register & Manage' },
-    { path: '/pay', label: 'SmartVerse Pay', icon: QrCode, description: 'Transfer & QR' }
+    { path: '/dashboard', label: 'Dashboard', icon: Settings, description: 'Register & Manage' },
+    { path: '/pay', label: 'Cross-Chain Pay', icon: QrCode, description: 'Transfer & QR' }
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -23,10 +23,11 @@ export const Navigation = () => {
           <div className="flex items-center justify-between">
             {/* Logo Section */}
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
-                <Globe className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-gray-900 font-bold text-lg">SmartVerse</span>
+              <img 
+                src="/smartverse.svg" 
+                alt="SmartVerse Logo" 
+                className="h-10 w-auto sm:h-12"
+              />
             </div>
 
             {/* Desktop Navigation */}

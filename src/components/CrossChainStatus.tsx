@@ -28,7 +28,7 @@ export const CrossChainStatus = () => {
           🌐 Cross-Chain Status
         </CardTitle>
         <CardDescription>
-          Your connection status in the SmartVerse ecosystem
+          Your connection status in the cross-chain ecosystem
         </CardDescription>
       </CardHeader>
       <CardContent>

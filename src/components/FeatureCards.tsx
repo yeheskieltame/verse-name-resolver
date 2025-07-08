@@ -37,7 +37,7 @@ export const FeatureCards = () => {
       {/* Section Header */}
       <div className="text-center space-y-4 sm:space-y-6 animate-fade-in">
         <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900">
-          Why Choose SmartVerse?
+          Why Choose Our Platform?
         </h2>
         <p className="text-gray-600 text-base sm:text-lg max-w-3xl mx-auto leading-relaxed">
           Built for the future of web3 with cutting-edge technology and user-first design

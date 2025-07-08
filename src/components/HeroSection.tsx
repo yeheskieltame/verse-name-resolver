@@ -4,6 +4,15 @@ import { Shield, Globe, Zap, Sparkles, ArrowRight } from 'lucide-react';
 export const HeroSection = () => {
   return (
     <div className="text-center max-w-6xl mx-auto space-y-8 sm:space-y-12 lg:space-y-16">
+      {/* Logo Hero */}
+      <div className="flex justify-center animate-fade-in">
+        <img 
+          src="/smartverse.svg" 
+          alt="Platform Logo" 
+          className="h-20 w-auto sm:h-24 lg:h-32 xl:h-40"
+        />
+      </div>
+      
       {/* Main Title */}
       <div className="space-y-6 sm:space-y-8 animate-fade-in">
         <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-gray-900 leading-tight">

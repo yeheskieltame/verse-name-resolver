@@ -11,7 +11,7 @@ import { SmartVersePay } from '@/components/SmartVersePay';
 import { DonationSectionWagmi } from '@/components/DonationSectionWagmi';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAccount, useChainId } from 'wagmi';
-import { Globe, QrCode, Calendar, Send, User, Sparkles } from 'lucide-react';
+import { QrCode, Calendar, Send, User, Sparkles } from 'lucide-react';
 
 export const IndexWagmi = () => {
   const { address, isConnected } = useAccount();
@@ -46,7 +46,7 @@ export const IndexWagmi = () => {
               <div className="flex items-center justify-center gap-2 mb-4">
                 <Sparkles className="w-6 h-6 text-purple-600" />
                 <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900">
-                  Cross-Chain SmartVerse Platform
+                  Cross-Chain Identity Platform
                 </h2>
                 <Sparkles className="w-6 h-6 text-purple-600" />
               </div>
@@ -83,7 +83,7 @@ export const IndexWagmi = () => {
                 <TabsTrigger value="smartverse-pay" className="flex items-center gap-3 text-gray-700 data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700 data-[state=active]:shadow-sm p-6 h-auto flex-col space-y-2 rounded-xl">
                   <div className="flex items-center gap-2">
                     <QrCode className="w-5 h-5" />
-                    <span className="font-semibold text-base">SmartVerse Pay</span>
+                    <span className="font-semibold text-base">Cross-Chain Pay</span>
                   </div>
                   <span className="text-xs opacity-75">Transfer & QR Payments</span>
                 </TabsTrigger>
@@ -114,7 +114,7 @@ export const IndexWagmi = () => {
               </TabsContent>
 
               <TabsContent value="smartverse-pay" className="w-full space-y-8">
-                {/* SmartVerse Pay Sub-tabs */}
+                {/* Cross-Chain Pay Sub-tabs */}
                 <Tabs defaultValue="transfer" className="w-full">
                   <TabsList className="tabs-sub grid w-full grid-cols-2 p-1">
                     <TabsTrigger value="transfer" className="flex items-center gap-2 text-gray-600 data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:shadow-sm rounded-lg">
@@ -163,13 +163,14 @@ export const IndexWagmi = () => {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center space-y-6">
             <div className="flex items-center justify-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl flex items-center justify-center shadow-sm">
-                <Globe className="w-6 h-6 text-white" />
-              </div>
-              <span className="text-gray-900 font-bold text-xl">SmartVerse</span>
+              <img 
+                src="/smartverse.svg" 
+                alt="Logo" 
+                className="h-12 w-auto sm:h-16"
+              />
             </div>
             <p className="text-gray-500 text-sm max-w-md mx-auto">
-              © 2025 SmartVerse. Building the future of web3 naming services with modern, clean design.
+              © 2025. Building the future of web3 naming services with modern, clean design.
             </p>
           </div>
         </div>

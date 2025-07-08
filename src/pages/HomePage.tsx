@@ -71,13 +71,13 @@ export const HomePage = () => {
               </div>
             </div>
 
-            {/* SmartVerse Pay Card */}
+            {/* Cross-Chain Pay Card */}
             <div className="bg-white border border-gray-200 shadow-lg rounded-2xl p-6 sm:p-8 hover:shadow-xl hover:scale-105 transition-all duration-300 group">
               <div className="text-center space-y-4">
                 <div className="w-16 h-16 mx-auto bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                   <QrCode className="w-8 h-8 text-white" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900">SmartVerse Pay</h3>
+                <h3 className="text-xl font-bold text-gray-900">Cross-Chain Pay</h3>
                 <p className="text-gray-600 text-sm leading-relaxed">
                   Send tokens using simple names or QR codes. Web3 payments made easy.
                 </p>
