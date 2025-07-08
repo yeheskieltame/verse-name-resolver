@@ -1,15 +1,16 @@
+
 import { useState, useEffect } from 'react';
 import { toast } from "@/hooks/use-toast";
-import { useWeb3 } from '@/hooks/useWeb3';
-import { SWNSService } from '@/services/swnsService';
+import { useWeb3 } from './useWeb3';
+import { SWNSService } from './swnsService';
 import { ethers } from 'ethers';
 import { Header } from '@/components/Header';
 import { HeroSection } from '@/components/HeroSection';
-import { NameRegistration } from '@/components/NameRegistration';
-import { SendTokens } from '@/components/SendTokens';
+import { NameRegistration } from './NameRegistration';
+import { SendTokens } from './SendTokens';
 import { NameDirectory } from '@/components/NameDirectory';
 import { FeatureCards } from '@/components/FeatureCards';
-import { DonationSection } from '@/components/DonationSection';
+import { DonationSection } from './DonationSection';
 import { NetworkInfo } from '@/components/NetworkInfo';
 
 interface RegisteredName {

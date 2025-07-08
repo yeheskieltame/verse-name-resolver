@@ -1,10 +1,11 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import { Send, Check, X } from 'lucide-react';
-import { SWNSService } from '@/services/swnsService';
+import { SWNSService } from './swnsService';
 import { ethers } from 'ethers';
 import { getNetworkConfig, ETHEREUM_NETWORK } from '@/contracts/swnsContract';
 

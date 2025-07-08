@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast";
 import { Heart, Copy, ExternalLink } from 'lucide-react';
 import { ethers } from 'ethers';
-import { useWeb3 } from '@/hooks/useWeb3';
+import { useWeb3 } from './useWeb3';
 import { ETHEREUM_NETWORK } from '@/contracts/swnsContract';
 
 interface DonationAddress {

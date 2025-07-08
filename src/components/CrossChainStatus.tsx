@@ -1,3 +1,4 @@
+
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -14,6 +15,11 @@ export const CrossChainStatus = () => {
   }
   
   const networkInfo = CrossChainNameService.getNetworkInfo(chainId);
+  // Add isSpoke property for compatibility
+  const extendedNetworkInfo = {
+    ...networkInfo,
+    isSpoke: !networkInfo.isHub
+  };
   
   return (
     <Card className="mb-6">
@@ -31,15 +37,15 @@ export const CrossChainStatus = () => {
           <div className="space-y-2">
             <h4 className="font-medium">Current Network</h4>
             <div className="flex items-center gap-2">
-              <Badge variant={networkInfo.isHub ? "default" : "secondary"}>
-                {networkInfo.name}
+              <Badge variant={extendedNetworkInfo.isHub ? "default" : "secondary"}>
+                {extendedNetworkInfo.name}
               </Badge>
-              {networkInfo.isHub && (
+              {extendedNetworkInfo.isHub && (
                 <Badge variant="outline" className="text-blue-600">
                   🏛️ Hub Chain
                 </Badge>
               )}
-              {networkInfo.isSpoke && (
+              {extendedNetworkInfo.isSpoke && (
                 <Badge variant="outline" className="text-green-600">
                   ⚡ Transaction Chain
                 </Badge>
@@ -51,7 +57,7 @@ export const CrossChainStatus = () => {
           <div className="space-y-2">
             <h4 className="font-medium">Available Functions</h4>
             <div className="flex flex-wrap gap-1">
-              {networkInfo.isHub && (
+              {extendedNetworkInfo.isHub && (
                 <Badge variant="default" className="text-xs">
                   Register Names
                 </Badge>
@@ -72,7 +78,7 @@ export const CrossChainStatus = () => {
         <div className="space-y-2">
           <h4 className="font-medium">How it works:</h4>
           <div className="text-sm text-muted-foreground space-y-1">
-            {networkInfo.isHub ? (
+            {extendedNetworkInfo.isHub ? (
               <>
                 <p>✅ You're on the <strong>Hub Chain</strong> - you can register new names here</p>
                 <p>📝 All usernames are stored as NFTs on Mainnet (Hub Chain)</p>
