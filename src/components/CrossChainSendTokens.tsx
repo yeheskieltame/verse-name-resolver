@@ -187,13 +187,13 @@ export const CrossChainSendTokens = () => {
 
   if (!isConnected) {
     return (
-      <Card className="bg-white/10 backdrop-blur-lg border-white/20">
+      <Card className="bg-white border border-gray-200 shadow-sm">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className="text-gray-900 flex items-center gap-2">
             <Send className="w-5 h-5" />
             Cross-Chain Token Transfer
           </CardTitle>
-          <CardDescription className="text-gray-300">
+          <CardDescription className="text-gray-600">
             Connect your wallet to send tokens using SmartVerse names
           </CardDescription>
         </CardHeader>
@@ -202,20 +202,20 @@ export const CrossChainSendTokens = () => {
   }
 
   return (
-    <Card className="bg-white/10 backdrop-blur-lg border-white/20 hover:bg-white/15 transition-all duration-300">
+    <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300">
       <CardHeader>
-        <CardTitle className="text-white flex items-center gap-2">
+        <CardTitle className="text-gray-900 flex items-center gap-2">
           <div className="w-8 h-8 bg-gradient-to-r from-green-400 to-blue-400 rounded-lg flex items-center justify-center">
             <Send className="w-4 h-4 text-white" />
           </div>
           Cross-Chain Token Transfer
         </CardTitle>
-        <CardDescription className="text-gray-300">
+        <CardDescription className="text-gray-600">
           Send any token to .sw names on <strong>{networkInfo.name}</strong>
         </CardDescription>
         
         {/* Test Connection Button */}
-        <div className="flex items-center gap-2 text-sm text-gray-400">
+        <div className="flex items-center gap-2 text-sm text-gray-500">
           <span>Username resolution via Hub Chain</span>
           <Button
             variant="outline"
@@ -228,7 +228,7 @@ export const CrossChainSendTokens = () => {
                 variant: result.success ? "default" : "destructive",
               });
             }}
-            className="text-xs h-6 bg-white/10 hover:bg-white/20"
+            className="text-xs h-6 bg-gray-50 hover:bg-gray-100 text-gray-600"
           >
             Test Connection
           </Button>
@@ -238,7 +238,7 @@ export const CrossChainSendTokens = () => {
       <CardContent className="space-y-6">
         {/* Token Selection */}
         <div className="space-y-2">
-          <Label className="text-white">Select Token</Label>
+          <Label className="text-gray-900">Select Token</Label>
           <TokenSelector
             tokens={allTokens}
             selectedToken={selectedToken}
@@ -248,7 +248,7 @@ export const CrossChainSendTokens = () => {
             disabled={isLoadingTokens}
           />
           {isLoadingTokens && (
-            <p className="text-xs text-gray-400 flex items-center gap-2">
+            <p className="text-xs text-gray-500 flex items-center gap-2">
               <Loader2 className="w-3 h-3 animate-spin" />
               Loading available tokens...
             </p>
@@ -257,14 +257,14 @@ export const CrossChainSendTokens = () => {
 
         {/* Recipient Input */}
         <div className="space-y-2">
-          <Label htmlFor="recipient" className="text-white">Send To</Label>
+          <Label htmlFor="recipient" className="text-gray-900">Send To</Label>
           <div className="flex gap-2">
             <Input
               id="recipient"
               placeholder="alice.sw or 0x123..."
               value={recipient}
               onChange={(e) => handleRecipientChange(e.target.value)}
-              className="flex-1 bg-white/5 border-white/20 text-white placeholder:text-gray-400"
+              className="flex-1 bg-white border-gray-300 text-gray-900 placeholder:text-gray-500"
             />
             <Button
               onClick={handleResolveRecipient}
@@ -279,31 +279,31 @@ export const CrossChainSendTokens = () => {
               )}
             </Button>
           </div>
-          <div className="text-xs text-gray-400">
+          <div className="text-xs text-gray-600">
             💡 Tip: Register a name first on Sepolia testnet, then use it here on any chain
           </div>
           
           {/* Resolution Status */}
           {resolvedAddress && (
-            <Alert className="bg-green-500/10 border-green-500/20">
-              <CheckCircle className="h-4 w-4 text-green-400" />
-              <AlertDescription className="text-green-300">
-                ✅ Resolved to: <code className="font-mono text-sm bg-green-500/20 px-1 rounded">{resolvedAddress}</code>
+            <Alert className="bg-green-50 border-green-200">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-green-700">
+                ✅ Resolved to: <code className="font-mono text-sm bg-green-100 px-1 rounded">{resolvedAddress}</code>
               </AlertDescription>
             </Alert>
           )}
           
           {resolutionError && (
-            <Alert className="bg-red-500/10 border-red-500/20">
-              <AlertCircle className="h-4 w-4 text-red-400" />
-              <AlertDescription className="text-red-300">{resolutionError}</AlertDescription>
+            <Alert className="bg-red-50 border-red-200">
+              <AlertCircle className="h-4 w-4 text-red-600" />
+              <AlertDescription className="text-red-700">{resolutionError}</AlertDescription>
             </Alert>
           )}
         </div>
 
         {/* Amount Input */}
         <div className="space-y-2">
-          <Label htmlFor="amount" className="text-white">Amount</Label>
+          <Label htmlFor="amount" className="text-gray-900">Amount</Label>
           <div className="flex gap-2">
             <Input
               id="amount"
@@ -312,11 +312,11 @@ export const CrossChainSendTokens = () => {
               placeholder="0.0"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="flex-1 bg-white/5 border-white/20 text-white placeholder:text-gray-400"
+              className="flex-1 bg-white border-gray-300 text-gray-900 placeholder:text-gray-500"
             />
             {selectedToken && (
-              <div className="flex items-center px-3 bg-white/5 rounded-md border border-white/20">
-                <span className="text-sm font-medium text-white">
+              <div className="flex items-center px-3 bg-gray-50 rounded-md border border-gray-300">
+                <span className="text-sm font-medium text-gray-900">
                   {selectedToken.symbol}
                 </span>
               </div>
@@ -325,7 +325,7 @@ export const CrossChainSendTokens = () => {
           
           {selectedToken && (
             <div className="flex items-center justify-between">
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-gray-500">
                 Balance: {parseFloat(selectedToken.formattedBalance).toFixed(4)} {selectedToken.symbol}
               </p>
               <div className="flex gap-1">
@@ -333,7 +333,7 @@ export const CrossChainSendTokens = () => {
                   variant="ghost"
                   size="sm"
                   onClick={() => handleQuickAmount(25)}
-                  className="text-xs h-6 px-2 text-gray-400 hover:text-white hover:bg-white/10"
+                  className="text-xs h-6 px-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100"
                 >
                   25%
                 </Button>
@@ -341,7 +341,7 @@ export const CrossChainSendTokens = () => {
                   variant="ghost"
                   size="sm"
                   onClick={() => handleQuickAmount(50)}
-                  className="text-xs h-6 px-2 text-gray-400 hover:text-white hover:bg-white/10"
+                  className="text-xs h-6 px-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100"
                 >
                   50%
                 </Button>
@@ -349,7 +349,7 @@ export const CrossChainSendTokens = () => {
                   variant="ghost"
                   size="sm"
                   onClick={() => handleQuickAmount(100)}
-                  className="text-xs h-6 px-2 text-gray-400 hover:text-white hover:bg-white/10"
+                  className="text-xs h-6 px-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100"
                 >
                   Max
                 </Button>

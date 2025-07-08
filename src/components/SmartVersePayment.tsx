@@ -255,7 +255,7 @@ export const SmartVersePayment = () => {
                         className="bg-gray-700 border-gray-600 text-white text-sm"
                       />
                       <div className="flex items-center px-3 bg-gray-700 rounded-md">
-                        <span className="text-sm text-gray-300">.sw</span>
+                        <span className="text-sm text-gray-600">.sw</span>
                       </div>
                     </div>
                   </div>
@@ -324,7 +324,7 @@ export const SmartVersePayment = () => {
                         className="bg-gray-700 border-gray-600 text-white text-sm"
                       />
                       <div className="flex items-center px-3 bg-gray-700 rounded-md">
-                        <span className="text-sm text-gray-300">.sw</span>
+                        <span className="text-sm text-gray-600">.sw</span>
                       </div>
                     </div>
                   </div>
@@ -383,7 +383,7 @@ export const SmartVersePayment = () => {
                           <SimpleQRCode value={dynamicQRData} size={150} />
                         </div>
                       </div>
-                      <div className="text-center text-xs text-gray-400">
+                      <div className="text-center text-xs text-gray-600">
                         {paymentAmount} {selectedToken?.symbol} to {recipientName}.sw
                       </div>
                       <div className="flex gap-2">
@@ -442,7 +442,7 @@ export const SmartVersePayment = () => {
                 >
                   <div className="text-center space-y-3">
                     <Camera className="w-12 h-12 mx-auto text-gray-500" />
-                    <p className="text-sm text-gray-400">Camera view will appear here</p>
+                    <p className="text-sm text-gray-600">Camera view will appear here</p>
                     <Button 
                       onClick={handleStartScanning}
                       disabled={isScanning}

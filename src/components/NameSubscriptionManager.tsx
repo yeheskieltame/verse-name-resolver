@@ -190,10 +190,10 @@ export const NameSubscriptionManager = () => {
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin mr-2" />
-            <span className="text-gray-400">Loading your names...</span>
+            <span className="text-gray-600">Loading your names...</span>
           </div>
         ) : userNames.length === 0 ? (
-          <div className="text-center py-8 text-gray-400">
+          <div className="text-center py-8 text-gray-600">
             <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
             <p>You don't have any registered names yet</p>
             <p className="text-sm">Register your first name to get started!</p>
@@ -211,7 +211,7 @@ export const NameSubscriptionManager = () => {
                           <span className="font-medium text-white">{nameData.name}</span>
                           {getStatusBadge(nameData)}
                         </div>
-                        <div className="text-sm text-gray-400">
+                        <div className="text-sm text-gray-600">
                           <div>Expires: {formatExpiryDate(nameData.expiresAt)}</div>
                           <div className={
                             nameData.isInGracePeriod ? 'text-red-400' :

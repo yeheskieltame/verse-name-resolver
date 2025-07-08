@@ -12,8 +12,8 @@ export const Layout = ({ children }: LayoutProps) => {
       {/* Navigation */}
       <Navigation />
       
-      {/* Main Content */}
-      <main className="relative z-10">
+      {/* Main Content - Add padding top for fixed navigation */}
+      <main className="relative z-10 pt-24">
         {children}
       </main>
       

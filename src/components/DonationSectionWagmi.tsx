@@ -153,15 +153,15 @@ export const DonationSectionWagmi = () => {
   const isOnMainnet = chainId === 1;
 
   return (
-    <Card className="bg-white/10 backdrop-blur-lg border-white/20 max-w-5xl mx-auto hover:bg-white/15 transition-all duration-300">
+    <Card className="bg-white border border-gray-200 shadow-lg max-w-5xl mx-auto hover:shadow-xl transition-all duration-300">
       <CardHeader className="pb-4 sm:pb-6">
-        <CardTitle className="text-white flex items-center gap-2 text-lg sm:text-xl lg:text-2xl">
+        <CardTitle className="text-gray-900 flex items-center gap-2 text-lg sm:text-xl lg:text-2xl">
           <div className="w-8 h-8 bg-gradient-to-r from-pink-500 to-red-500 rounded-lg flex items-center justify-center flex-shrink-0">
             <Heart className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
           </div>
           Support the Project
         </CardTitle>
-        <CardDescription className="text-gray-300 text-sm sm:text-base leading-relaxed">
+        <CardDescription className="text-gray-600 text-sm sm:text-base leading-relaxed">
           Help us continue building amazing web3 tools for the community
         </CardDescription>
       </CardHeader>
@@ -171,7 +171,7 @@ export const DonationSectionWagmi = () => {
           <div className="space-y-4 sm:space-y-6">
             <div className="space-y-2">
               <h3 className="text-white font-semibold text-base sm:text-lg">Quick Donation</h3>
-              <p className="text-gray-400 text-sm sm:text-base">Send ETH directly from your wallet</p>
+              <p className="text-gray-600 text-sm sm:text-base">Send ETH directly from your wallet</p>
             </div>
             
             {/* Network Info */}
@@ -208,17 +208,17 @@ export const DonationSectionWagmi = () => {
                     <span className="text-white font-mono">{parseFloat(currentBalance).toFixed(4)} ETH</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-blue-200">Ethereum Mainnet:</span>
-                    <span className="text-white font-mono">{parseFloat(mainnetBalance).toFixed(4)} ETH</span>
+                    <span className="text-blue-600">Ethereum Mainnet:</span>
+                    <span className="text-gray-900 font-mono">{parseFloat(mainnetBalance).toFixed(4)} ETH</span>
                   </div>
                 </div>
               </div>
             )}
 
             {/* Donation Form */}
-            <div className="bg-gradient-to-br from-pink-500/10 to-red-500/10 border border-pink-400/20 rounded-xl p-4 sm:p-6 space-y-4">
+            <div className="bg-pink-50 border border-pink-200 rounded-xl p-4 sm:p-6 space-y-4">
               <div className="space-y-3">
-                <label className="text-sm sm:text-base text-gray-300 font-medium block">
+                <label className="text-sm sm:text-base text-gray-900 font-medium block">
                   Donation Amount (ETH)
                 </label>
                 <Input
@@ -227,7 +227,7 @@ export const DonationSectionWagmi = () => {
                   placeholder="0.01"
                   value={donationAmount}
                   onChange={(e) => setDonationAmount(e.target.value)}
-                  className="bg-white/5 border-white/20 text-white placeholder:text-gray-400 h-11 sm:h-12 text-base focus:ring-2 focus:ring-pink-400/50"
+                  className="bg-white border-gray-300 text-gray-900 placeholder:text-gray-500 h-11 sm:h-12 text-base focus:ring-2 focus:ring-pink-500"
                 />
               </div>
 
@@ -251,7 +251,7 @@ export const DonationSectionWagmi = () => {
               </Button>
               
               {!isConnected && (
-                <p className="text-center text-gray-400 text-xs sm:text-sm">
+                <p className="text-center text-gray-600 text-xs sm:text-sm">
                   Connect your wallet to make donations
                 </p>
               )}
@@ -261,27 +261,27 @@ export const DonationSectionWagmi = () => {
           {/* Right Column - Direct Addresses */}
           <div className="space-y-4 sm:space-y-6">
             <div className="space-y-2">
-              <h3 className="text-white font-semibold text-base sm:text-lg">Direct Transfer</h3>
-              <p className="text-gray-400 text-sm sm:text-base">Send directly to our addresses</p>
+              <h3 className="text-gray-900 font-semibold text-base sm:text-lg">Direct Transfer</h3>
+              <p className="text-gray-600 text-sm sm:text-base">Send directly to our addresses</p>
             </div>
             
             {donationAddresses.map((donation, index) => (
-              <div key={index} className="bg-gray-500/10 border border-gray-400/20 rounded-xl p-4 sm:p-5 hover:bg-gray-500/15 transition-colors">
+              <div key={index} className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 hover:bg-gray-50 transition-colors shadow-sm">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-r from-gray-600 to-gray-700 rounded-lg flex items-center justify-center text-lg">
+                    <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center text-lg text-white">
                       {donation.icon}
                     </div>
                     <div>
-                      <span className="text-white font-medium text-sm sm:text-base block">{donation.network}</span>
-                      <span className="text-gray-400 text-xs">Blockchain network</span>
+                      <span className="text-gray-900 font-medium text-sm sm:text-base block">{donation.network}</span>
+                      <span className="text-gray-500 text-xs">Blockchain network</span>
                     </div>
                   </div>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => openExplorer(donation.address, donation.network)}
-                    className="border-white/30 bg-white/10 text-white hover:bg-white/20 hover:border-white/50 self-start sm:self-center"
+                    className="border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 self-start sm:self-center"
                   >
                     <ExternalLink className="w-4 h-4" />
                     <span className="ml-2 hidden sm:inline">View</span>
@@ -289,9 +289,9 @@ export const DonationSectionWagmi = () => {
                 </div>
                 
                 <div className="space-y-3">
-                  <div className="bg-black/20 rounded-lg p-3 border border-white/10">
-                    <p className="text-gray-400 text-xs mb-2">Address:</p>
-                    <code className="text-gray-300 text-xs sm:text-sm break-all leading-relaxed block">
+                  <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                    <p className="text-gray-600 text-xs mb-2">Address:</p>
+                    <code className="text-gray-800 text-xs sm:text-sm break-all leading-relaxed block font-mono">
                       {donation.address}
                     </code>
                   </div>
@@ -300,14 +300,14 @@ export const DonationSectionWagmi = () => {
                     variant="outline"
                     size="sm"
                     onClick={() => copyToClipboard(donation.address, donation.network)}
-                    className="w-full border-white/30 bg-white/10 text-white hover:bg-white/20 hover:border-white/50"
+                    className="w-full border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400"
                   >
                     {copiedAddress === donation.address ? (
                       <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 bg-green-500/20 rounded-full flex items-center justify-center">
-                          <span className="text-green-400 text-xs">✓</span>
+                        <div className="w-4 h-4 bg-green-100 rounded-full flex items-center justify-center">
+                          <span className="text-green-600 text-xs">✓</span>
                         </div>
-                        <span className="text-green-400">Copied!</span>
+                        <span className="text-green-600">Copied!</span>
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
@@ -323,14 +323,14 @@ export const DonationSectionWagmi = () => {
         </div>
 
         {/* Thank You Message */}
-        <div className="text-center pt-6 sm:pt-8 border-t border-white/10">
-          <div className="bg-gradient-to-r from-purple-600/20 to-pink-600/20 backdrop-blur-sm border border-white/20 rounded-2xl p-6 sm:p-8 max-w-2xl mx-auto">
+        <div className="text-center pt-6 sm:pt-8 border-t border-gray-200">
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-gray-200 rounded-2xl p-6 sm:p-8 max-w-2xl mx-auto">
             <div className="flex items-center justify-center gap-2 mb-3">
-              <Heart className="w-5 h-5 text-red-400" />
-              <span className="text-white font-semibold text-base sm:text-lg">Thank You!</span>
-              <Heart className="w-5 h-5 text-red-400" />
+              <Heart className="w-5 h-5 text-red-500" />
+              <span className="text-gray-900 font-semibold text-base sm:text-lg">Thank You!</span>
+              <Heart className="w-5 h-5 text-red-500" />
             </div>
-            <p className="text-gray-300 text-sm sm:text-base leading-relaxed">
+            <p className="text-gray-700 text-sm sm:text-base leading-relaxed">
               Every donation helps us build better tools for the community and advance the web3 ecosystem. 
               Your support means the world to us! 🙏
             </p>
