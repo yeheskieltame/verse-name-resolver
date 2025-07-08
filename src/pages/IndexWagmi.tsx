@@ -18,16 +18,9 @@ export const IndexWagmi = () => {
   const chainId = useChainId();
 
   return (
-    <div className="min-h-screen bg-white relative overflow-x-hidden">
-      {/* Subtle background decoration */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 -left-4 w-96 h-96 bg-purple-50 rounded-full mix-blend-multiply filter blur-3xl opacity-70"></div>
-        <div className="absolute top-0 -right-4 w-96 h-96 bg-blue-50 rounded-full mix-blend-multiply filter blur-3xl opacity-70"></div>
-        <div className="absolute -bottom-8 left-20 w-96 h-96 bg-purple-50 rounded-full mix-blend-multiply filter blur-3xl opacity-50"></div>
-      </div>
-
+    <div className="min-h-screen bg-white">
       {/* Header */}
-      <div className="sticky top-0 z-50 backdrop-blur-md bg-white/90 border-b border-gray-200">
+      <div className="sticky top-0 z-50 backdrop-blur-md bg-white/95 border-b border-gray-200">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <HeaderWagmi />
         </div>
