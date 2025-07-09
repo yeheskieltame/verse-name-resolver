@@ -13,14 +13,10 @@ import { PayPage } from './pages/PayPage';
 import BusinessPage from './pages/BusinessPage';
 import PaymentProcessor from './components/PaymentProcessor';
 import NotFound from "./pages/NotFound";
-import { BusinessDataManager } from './services/businessDataManager';
 
 import '@rainbow-me/rainbowkit/styles.css';
 
 const queryClient = new QueryClient();
-
-// Initialize cleanup system
-BusinessDataManager.initializeCleanup();
 
 const App = () => (
   <WagmiProvider config={config}>

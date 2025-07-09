@@ -60,7 +60,7 @@ interface Transaction {
   timestamp: string;
   chainId: number;
   chainName: string;
-  status: 'completed' | 'pending' | 'failed';
+  status: 'pending' | 'processing' | 'success' | 'failed';
   hash: string;
 }
 

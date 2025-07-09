@@ -36,18 +36,20 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ vaultAddress }) => {
     try {
       // Cleanup expired requests first
       BusinessDataManager.cleanupExpiredRequests();
-      
-      // Get statistics
-      const statistics = BusinessDataManager.getPaymentStatistics(vaultAddress);
+      // Ambil semua payment request untuk vault ini
+      const allPayments = Object.values(BusinessDataManager.getAllPaymentRequests())
+        .filter(p => p.businessVaultAddress === vaultAddress);
+      const totalPayments = allPayments.length;
+      const totalAmount = allPayments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+      const completedPayments = allPayments.filter(p => p.status === 'success').length;
+      const pendingPayments = allPayments.filter(p => p.status === 'pending').length;
       setStats({
-        totalPayments: statistics.totalPayments,
-        totalAmount: statistics.totalAmount,
-        completedPayments: statistics.completedPayments,
-        pendingPayments: statistics.pendingPayments
+        totalPayments,
+        totalAmount,
+        completedPayments,
+        pendingPayments
       });
-      
-      // Get recent payments
-      setPayments(statistics.recentPayments);
+      setPayments(allPayments.slice(-10).reverse()); // recent 10 payments
     } catch (error) {
       console.error('Error loading payment data:', error);
     } finally {

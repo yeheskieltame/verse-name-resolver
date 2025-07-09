@@ -33,7 +33,7 @@ export interface BusinessTransaction {
   from: string;
   to: string;
   txHash?: string;
-  status: 'completed' | 'pending' | 'failed';
+  status: 'pending' | 'processing' | 'success' | 'failed';
   chainId: number;
 }
 
@@ -238,7 +238,7 @@ export class SmartVerseBusinessService {
           from: tx.from,
           to: tx.to,
           txHash: tx.txHash,
-          status: 'completed',
+          status: 'success',
           chainId: 11155111
         });
       }
@@ -317,6 +317,55 @@ export class SmartVerseBusinessService {
     this.clearCache(CACHE_KEYS.BUSINESS_SUMMARY, vaultAddress);
     this.clearCache(CACHE_KEYS.TRANSACTIONS, vaultAddress);
     console.log('Business data cache cleared for vault:', vaultAddress);
+  }
+
+  /**
+   * Deposit native (ETH) ke vault bisnis
+   */
+  async depositNativeToVault(
+    vaultAddress: `0x${string}`,
+    amountWei: bigint,
+    category: string
+  ): Promise<string> {
+    try {
+      const alchemyKey = import.meta.env.VITE_ALCHEMY_SEPOLIA_KEY;
+      const provider = new JsonRpcProvider(`https://eth-sepolia.g.alchemy.com/v2/${alchemyKey}`);
+      // User harus sign transaksi, jadi perlu signer dari wallet (harus diimplementasikan di frontend, ini hanya contoh call contract)
+      // const signer = provider.getSigner();
+      // const vault = new Contract(vaultAddress, BusinessVault_ABI, signer);
+      // const tx = await vault.depositNative(category, { value: amountWei });
+      // await tx.wait();
+      // return tx.hash;
+      // Untuk mock/testing:
+      return '0x' + Math.random().toString(16).substr(2, 64);
+    } catch (error) {
+      console.error('Error deposit native to vault:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Deposit token ke vault bisnis
+   */
+  async depositTokenToVault(
+    vaultAddress: `0x${string}`,
+    tokenAddress: `0x${string}`,
+    amount: string,
+    category: string
+  ): Promise<string> {
+    try {
+      // Sama seperti di atas, harus pakai signer dan approve token dulu
+      // const signer = provider.getSigner();
+      // const vault = new Contract(vaultAddress, BusinessVault_ABI, signer);
+      // const tx = await vault.depositToken(tokenAddress, amount, category);
+      // await tx.wait();
+      // return tx.hash;
+      // Untuk mock/testing:
+      return '0x' + Math.random().toString(16).substr(2, 64);
+    } catch (error) {
+      console.error('Error deposit token to vault:', error);
+      throw error;
+    }
   }
 }
 

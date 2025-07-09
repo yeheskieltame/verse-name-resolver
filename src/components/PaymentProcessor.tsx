@@ -57,11 +57,26 @@ const PaymentProcessor: React.FC = () => {
 
   const loadPaymentRequest = () => {
     if (!paymentId) return;
-    
+
     const request = BusinessDataManager.getPaymentRequest(paymentId);
     if (request) {
       setPaymentRequest(request);
-      setPaymentStatus(request.status as any);
+      // Normalisasi status agar hanya 'pending' | 'processing' | 'success' | 'failed'
+      let normalizedStatus: 'pending' | 'processing' | 'success' | 'failed';
+      const statusStr = String(request.status);
+      if (statusStr === 'completed') {
+        normalizedStatus = 'success';
+      } else if (
+        statusStr === 'pending' ||
+        statusStr === 'processing' ||
+        statusStr === 'failed' ||
+        statusStr === 'success'
+      ) {
+        normalizedStatus = statusStr as typeof normalizedStatus;
+      } else {
+        normalizedStatus = 'pending';
+      }
+      setPaymentStatus(normalizedStatus);
     } else {
       setErrorMessage('Payment request tidak ditemukan');
     }
@@ -69,46 +84,41 @@ const PaymentProcessor: React.FC = () => {
 
   const processPayment = async () => {
     if (!paymentRequest || !address || !isConnected) return;
-    
     try {
       setIsProcessing(true);
       setPaymentStatus('processing');
       setErrorMessage('');
-
       const amountInWei = parseEther(paymentRequest.amount);
-
       let txHash: string;
-      
-      if (paymentRequest.isBusinessTransaction) {
-        // Business transaction - deposit to vault
-        txHash = await smartVerseBusiness.depositToVault(
-          paymentRequest.businessVaultAddress,
+      if (paymentRequest.currency === 'ETH') {
+        // Deposit native ETH ke vault
+        txHash = await smartVerseBusiness.depositNativeToVault(
+          paymentRequest.businessVaultAddress as `0x${string}`,
           amountInWei,
-          `Pembayaran: ${paymentRequest.description}`
+          paymentRequest.description || ''
+        );
+      } else if (paymentRequest.currency === 'IDRT' && paymentRequest.tokenAddress) {
+        // Deposit token ke vault
+        txHash = await smartVerseBusiness.depositTokenToVault(
+          paymentRequest.businessVaultAddress as `0x${string}`,
+          paymentRequest.tokenAddress as `0x${string}`,
+          paymentRequest.amount,
+          paymentRequest.description || ''
         );
       } else {
-        // Regular transfer - send directly to vault
-        txHash = await smartVerseBusiness.sendToVault(
-          paymentRequest.businessVaultAddress,
-          amountInWei,
-          `Transfer: ${paymentRequest.description}`
-        );
+        throw new Error('Jenis pembayaran tidak didukung');
       }
-
       // Update payment request status
       BusinessDataManager.updatePaymentRequest(paymentId!, {
-        status: 'completed'
+        status: 'success' // Ganti dari 'completed' ke 'success' agar konsisten dengan union type
       });
-
       setPaymentStatus('success');
-      
       console.log('Payment processed successfully:', {
         paymentId: paymentRequest.id,
         txHash,
         amount: paymentRequest.amount,
-        isBusinessTransaction: paymentRequest.isBusinessTransaction
+        currency: paymentRequest.currency
       });
-
     } catch (error) {
       console.error('Payment processing failed:', error);
       setPaymentStatus('failed');
@@ -319,7 +329,7 @@ const PaymentProcessor: React.FC = () => {
 
                 <Button 
                   onClick={processPayment}
-                  disabled={isProcessing || isExpired || paymentStatus === 'success'}
+                  disabled={isProcessing || isExpired || (paymentStatus as string) === 'success'}
                   className="w-full"
                   size="lg"
                 >

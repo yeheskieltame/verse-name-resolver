@@ -23,6 +23,7 @@ export interface PaymentRequest {
   currency: 'ETH' | 'IDRT';
   description: string;
   isBusinessTransaction: boolean;
+  tokenAddress?: string; // tambahkan untuk pembayaran token
   customerInfo?: {
     name?: string;
     email?: string;
@@ -35,7 +36,7 @@ export interface PaymentRequest {
   }[];
   createdAt: number;
   expiresAt: number;
-  status: 'pending' | 'completed' | 'expired';
+  status: 'pending' | 'processing' | 'success' | 'failed';
 }
 
 const BUSINESS_STORAGE_KEY = 'smartverse_business_info';
@@ -78,16 +79,27 @@ export class BusinessDataManager {
     return request.id;
   }
 
-  static getPaymentRequest(id: string): PaymentRequest | null {
-    const requests = this.getAllPaymentRequests();
-    return requests[id] || null;
-  }
-
   static getAllPaymentRequests(): Record<string, PaymentRequest> {
     const data = localStorage.getItem(PAYMENT_REQUESTS_KEY);
     return data ? JSON.parse(data) : {};
   }
 
+  static getPaymentRequest(id: string): PaymentRequest | null {
+    const requests = this.getAllPaymentRequests();
+    return requests[id] ?? null;
+  }
+
+  // Generate unique payment ID
+  static generatePaymentId(): string {
+    return 'pay_' + Math.random().toString(36).substr(2, 9) + Date.now();
+  }
+
+  // Generate QR data string (bisa diubah sesuai kebutuhan encoding)
+  static generatePaymentQRData(request: PaymentRequest): string {
+    return JSON.stringify(request);
+  }
+
+  // Update payment request (status, dsb)
   static updatePaymentRequest(id: string, updates: Partial<PaymentRequest>): void {
     const requests = this.getAllPaymentRequests();
     if (requests[id]) {
@@ -96,62 +108,27 @@ export class BusinessDataManager {
     }
   }
 
-  static getBusinessPaymentRequests(vaultAddress: string): PaymentRequest[] {
-    const requests = this.getAllPaymentRequests();
-    return Object.values(requests).filter(req => req.businessVaultAddress === vaultAddress);
-  }
-
-  // Clean up expired payment requests
+  // Cleanup expired requests
   static cleanupExpiredRequests(): void {
     const requests = this.getAllPaymentRequests();
     const now = Date.now();
-    const active = Object.fromEntries(
-      Object.entries(requests).filter(([_, req]) => req.expiresAt > now)
-    );
-    localStorage.setItem(PAYMENT_REQUESTS_KEY, JSON.stringify(active));
+    Object.keys(requests).forEach(id => {
+      if (requests[id].expiresAt < now) {
+        delete requests[id];
+      }
+    });
+    localStorage.setItem(PAYMENT_REQUESTS_KEY, JSON.stringify(requests));
   }
 
-  // Auto cleanup on load
-  static initializeCleanup(): void {
-    this.cleanupExpiredRequests();
-    // Set up periodic cleanup every 5 minutes
-    setInterval(() => {
-      this.cleanupExpiredRequests();
-    }, 5 * 60 * 1000);
-  }
-
-  // Get payment statistics for a business
-  static getPaymentStatistics(vaultAddress: string): {
-    totalPayments: number;
-    totalAmount: number;
-    completedPayments: number;
-    pendingPayments: number;
-    recentPayments: PaymentRequest[];
-  } {
-    const requests = this.getBusinessPaymentRequests(vaultAddress);
-    const completed = requests.filter(r => r.status === 'completed');
-    const pending = requests.filter(r => r.status === 'pending');
-    const recent = requests
-      .sort((a, b) => b.createdAt - a.createdAt)
-      .slice(0, 10);
-
-    return {
-      totalPayments: requests.length,
-      totalAmount: completed.reduce((sum, req) => sum + parseFloat(req.amount), 0),
-      completedPayments: completed.length,
-      pendingPayments: pending.length,
-      recentPayments: recent
-    };
-  }
-
-  // Generate payment request ID
-  static generatePaymentId(): string {
-    return `pay_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  }
-
-  // Generate QR code data for payment
-  static generatePaymentQRData(request: PaymentRequest): string {
-    const baseUrl = window.location.origin;
-    return `${baseUrl}/payment/${request.id}`;
+  // Get payment statistics (contoh: total, completed, expired)
+  static getPaymentStatistics(): { total: number; completed: number; expired: number } {
+    const requests = this.getAllPaymentRequests();
+    let total = 0, completed = 0, expired = 0;
+    Object.values(requests).forEach(req => {
+      total++;
+      if (req.status === 'success') completed++;
+      // expired status sudah tidak ada, bisa dihapus atau diganti jika perlu
+    });
+    return { total, completed, expired: 0 };
   }
 }
