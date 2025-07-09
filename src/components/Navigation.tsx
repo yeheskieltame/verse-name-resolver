@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { QrCode, Home, Menu, X, Settings } from 'lucide-react';
+import { QrCode, Home, Menu, X, Settings, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export const Navigation = () => {
@@ -11,6 +11,7 @@ export const Navigation = () => {
   const navItems = [
     { path: '/', label: 'Home', icon: Home, description: 'Landing Page' },
     { path: '/dashboard', label: 'Dashboard', icon: Settings, description: 'Register & Manage' },
+    { path: '/business', label: 'Business', icon: Building2, description: 'UMKM Digital Vault' },
     { path: '/pay', label: 'Cross-Chain Pay', icon: QrCode, description: 'Transfer & QR' }
   ];
 

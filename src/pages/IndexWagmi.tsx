@@ -11,7 +11,7 @@ import { SmartVersePay } from '@/components/SmartVersePay';
 import { DonationSectionWagmi } from '@/components/DonationSectionWagmi';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAccount, useChainId } from 'wagmi';
-import { QrCode, Calendar, Send, User, Sparkles } from 'lucide-react';
+import { QrCode, Calendar, Send, User, Sparkles, Globe } from 'lucide-react';
 
 export const IndexWagmi = () => {
   const { address, isConnected } = useAccount();

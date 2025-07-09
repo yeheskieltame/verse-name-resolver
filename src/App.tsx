@@ -10,11 +10,17 @@ import { Layout } from './components/Layout';
 import { HomePage } from './pages/HomePage';
 import { DashboardPage } from './pages/DashboardPage';
 import { PayPage } from './pages/PayPage';
+import BusinessPage from './pages/BusinessPage';
+import PaymentProcessor from './components/PaymentProcessor';
 import NotFound from "./pages/NotFound";
+import { BusinessDataManager } from './services/businessDataManager';
 
 import '@rainbow-me/rainbowkit/styles.css';
 
 const queryClient = new QueryClient();
+
+// Initialize cleanup system
+BusinessDataManager.initializeCleanup();
 
 const App = () => (
   <WagmiProvider config={config}>
@@ -29,6 +35,8 @@ const App = () => (
                 <Route path="/" element={<HomePage />} />
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/pay" element={<PayPage />} />
+                <Route path="/business" element={<BusinessPage />} />
+                <Route path="/payment/:paymentId" element={<PaymentProcessor />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Layout>

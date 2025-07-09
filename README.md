@@ -42,7 +42,17 @@ SmartVerse adalah platform identitas cross-chain yang komprehensif dengan antarm
 - **Gradient Accents**: Subtle gradient effects untuk nuansa premium
 - **High Contrast**: Semua teks dan icon mudah dibaca
 
-#### **5. 🌐 Network Management**
+#### **5. � SmartVerse Business (UMKM Digital)**
+- **Business Registration**: Registrasi bisnis on-chain dengan metadata lengkap
+- **Digital Vault Creation**: Buat brankas digital untuk manajemen aset bisnis
+- **Automated Bookkeeping**: Buku kas otomatis dengan kategorisasi transaksi
+- **Financial Reports**: Laporan keuangan real-time dengan visualisasi
+- **Multi-Chain Sync**: Sinkronisasi data bisnis di semua chains
+- **Payment Integration**: Integrasi pembayaran dengan MockIDRT stablecoin
+- **Income/Expense Tracking**: Track semua transaksi bisnis otomatis
+- **Business Analytics**: Analisis performa bisnis dan cash flow
+
+#### **6. �🌐 Network Management**
 - **Network Auto-Detection**: Deteksi jaringan aktif otomatis
 - **Chain Switch Prompts**: Prompt untuk switch chain ketika diperlukan
 - **Network Status Indicators**: Real-time status koneksi
@@ -53,6 +63,15 @@ SmartVerse adalah platform identitas cross-chain yang komprehensif dengan antarm
 - **Ownership Verification**: Verifikasi kepemilikan nama
 - **Expiration Tracking**: Monitor tanggal expired nama
 - **Bulk Operations**: Operasi massal untuk multiple names
+
+#### **7. 🏢 SmartVerse Business (NEW!)**
+- **Digital Vault**: Brankas digital terdesentralisasi untuk UMKM
+- **Accounting System**: Sistem akuntansi otomatis dengan kategorisasi
+- **Cross-Chain Reports**: Laporan keuangan lintas-chain
+- **Business Analytics**: Dashboard analitik untuk performa bisnis
+- **Multi-Business Support**: Kelola multiple bisnis dalam satu akun
+
+> 📖 **Dokumentasi Lengkap**: Lihat [BUSINESS_FEATURES.md](./BUSINESS_FEATURES.md) untuk detail fitur SmartVerse Business
 
 ## 📋 Halaman dan Fitur Lengkap
 
@@ -67,6 +86,13 @@ SmartVerse adalah platform identitas cross-chain yang komprehensif dengan antarm
 - **Name Management**: Kelola nama yang sudah dimiliki
 - **Subscription Status**: Monitor status berlangganan
 - **Cross-Chain Directory**: Browse semua nama di ecosystem
+
+### 🏢 **Business Page (SmartVerse Business)**
+- **Business Dashboard**: Overview keuangan dari semua bisnis
+- **Business Registration**: Wizard pendaftaran bisnis baru
+- **Vault Management**: Kelola brankas digital per bisnis
+- **Financial Reports**: Laporan keuangan dengan analitik mendalam
+- **Cross-Chain Operations**: Operasi lintas-chain untuk UMKM
 
 ### 💳 **Pay Page (SmartVerse Pay)**
 - **QR Code Generator**: 
@@ -180,19 +206,23 @@ SmartVerse adalah platform identitas cross-chain yang komprehensif dengan antarm
 - **Gradient Accents**: Subtle effects untuk nuansa premium
 - **Micro-interactions**: Smooth animations dan transitions
 
-### ✅ **5. Network & Connection Management**
-- **Auto Network Detection**: Deteksi chain aktif otomatis
-- **Smart Chain Switching**: Prompt untuk switch ke chain yang tepat
-- **Connection Health**: Monitor RPC endpoints dan connectivity
-- **Fallback Systems**: Auto-fallback jika koneksi bermasalah
-- **Network Status UI**: Real-time indicators untuk semua chains
+### ✅ **5. SmartVerse Business (UMKM Digital)**
+- **Business Registration**: Registrasi bisnis on-chain dengan metadata lengkap
+- **Digital Vault Creation**: Buat brankas digital untuk manajemen aset bisnis
+- **Automated Bookkeeping**: Buku kas otomatis dengan kategorisasi transaksi
+- **Financial Reports**: Laporan keuangan real-time dengan visualisasi
+- **Multi-Chain Sync**: Sinkronisasi data bisnis di semua chains
+- **Payment Integration**: Integrasi pembayaran dengan MockIDRT stablecoin
+- **Income/Expense Tracking**: Track semua transaksi bisnis otomatis
+- **Business Analytics**: Analisis performa bisnis dan cash flow
 
-### ✅ **6. Developer & Power User Features**
-- **Contract Integration**: Full integration dengan SWNS smart contract
-- **Error Handling**: Comprehensive error messages dan recovery
-- **Debug Mode**: Console logging untuk troubleshooting
-- **Gas Optimization**: Smart gas estimation dan optimization
-- **Batch Operations**: Bulk operations untuk multiple names
+### ✅ **6. Technical Excellence**
+- **Single Source of Truth**: Semua ABI dan contract addresses terpusat
+- **Type Safety**: Full TypeScript support dengan strict typing
+- **Error Handling**: Comprehensive error handling di semua layers
+- **Performance**: Optimized untuk fast loading dan smooth UX
+- **Security**: Best practices untuk smart contract interactions
+- **Maintainability**: Clean architecture yang mudah di-maintain
 
 ## 🎨 Desain & User Experience
 
@@ -237,6 +267,42 @@ SmartVerse adalah platform identitas cross-chain yang komprehensif dengan antarm
 - **ERC-721**: NFT standard untuk name ownership
 - **Subscription Logic**: Time-based ownership system
 - **Cross-Chain Read**: Read-only queries dari semua chains
+
+## 🔧 Technical Architecture
+
+### **Smart Contract Integration**
+- **Centralized ABI Management**: Semua ABI tersimpan di `BusinessContracts.ts`
+- **No Duplication**: Satu sumber tunggal untuk semua contract interactions
+- **Type Safety**: Full TypeScript support dengan proper typing
+- **Multi-Chain Deployment**: Contracts deployed di 10+ chains
+
+### **Contract Structure**
+```typescript
+// Centralized contract management
+export const BUSINESS_CONTRACTS = {
+  sepolia: {
+    contracts: {
+      SWNSRegistrar: "0x...",
+      BusinessFactory: "0x...",
+      MockIDRT: "0x...",
+      Receiver: "0x..."
+    }
+  }
+  // ... other chains
+}
+
+// Single source ABI exports
+export const BusinessFactory_ABI = [...];
+export const BusinessVault_ABI = [...];
+export const MockIDRT_ABI = [...];
+```
+
+### **Recent Improvements**
+- ✅ **ABI Consolidation**: Menghilangkan duplikasi ABI MockIDRT
+- ✅ **File Cleanup**: Menghapus file duplikat (`MockIDRTContract.ts`, `paymentContract.ts`)
+- ✅ **Import Optimization**: Semua import menggunakan `BusinessContracts.ts`
+- ✅ **Type Safety**: Zero TypeScript errors di semua files
+- ✅ **Build Success**: Clean build tanpa warnings
 
 ## 📚 Panduan Penggunaan Lengkap
 
