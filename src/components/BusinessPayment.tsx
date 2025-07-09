@@ -23,6 +23,7 @@ import {
 import { BusinessDataManager, PaymentRequest } from '../services/businessDataManager';
 import { useAccount } from 'wagmi';
 import QRCode from 'qrcode';
+import { BUSINESS_CONTRACTS } from '../contracts/BusinessContracts';
 
 interface BusinessPaymentProps {
   vaultAddress: string;
@@ -51,6 +52,25 @@ const BusinessPayment: React.FC<BusinessPaymentProps> = ({
   const [paymentRequest, setPaymentRequest] = useState<PaymentRequest | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // Token list for dropdown
+  const tokenOptions = [
+    {
+      label: 'MockIDRT',
+      value: BUSINESS_CONTRACTS.sepolia.contracts.MockIDRT,
+      currency: 'IDRT'
+    },
+    {
+      label: 'IDRT (soon)',
+      value: '',
+      currency: 'IDRT'
+    },
+    {
+      label: 'USDC (soon)',
+      value: '',
+      currency: 'USDC'
+    }
+  ];
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -202,16 +222,30 @@ const BusinessPayment: React.FC<BusinessPaymentProps> = ({
                 {paymentAsset === 'token' && (
                   <>
                     <div className="space-y-2">
-                      <Label htmlFor="tokenAddress">Alamat Token</Label>
-                      <Input
-                        id="tokenAddress"
-                        placeholder="0x..."
+                      <Label htmlFor="tokenAddress">Pilih Token</Label>
+                      <Select
                         value={formData.tokenAddress}
-                        onChange={(e) => handleInputChange('tokenAddress', e.target.value)}
-                      />
+                        onValueChange={value => {
+                          handleInputChange('tokenAddress', value);
+                          // Set currency otomatis sesuai pilihan
+                          const selected = tokenOptions.find(t => t.value === value);
+                          handleInputChange('currency', selected?.currency || 'IDRT');
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih Token" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {tokenOptions.filter(token => token.value).map(token => (
+                            <SelectItem key={token.label} value={token.value}>
+                              {token.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="amount">Jumlah (IDRT)</Label>
+                      <Label htmlFor="amount">Jumlah ({formData.currency})</Label>
                       <Input
                         id="amount"
                         type="number"
