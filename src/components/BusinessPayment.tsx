@@ -30,12 +30,14 @@ interface BusinessPaymentProps {
   vaultAddress: string;
   businessName: string;
   onClose?: () => void;
+  onPaymentSuccess?: (paymentId: string, amount: string) => Promise<void>;
 }
 
 const BusinessPayment: React.FC<BusinessPaymentProps> = ({ 
   vaultAddress, 
   businessName, 
-  onClose 
+  onClose,
+  onPaymentSuccess 
 }) => {
   const { address } = useAccount();
   
@@ -94,64 +96,161 @@ const BusinessPayment: React.FC<BusinessPaymentProps> = ({
     tokenAddress?: string;
     chainId?: number;
   }) {
-    const amountInWei = amount ? parseUnits(amount, 18).toString() : '0';
-    if (currency === 'ETH') {
-      return `ethereum:${vaultAddress}?value=${amountInWei}&chainId=${chainId}`;
-    } else if (currency === 'IDRT' && tokenAddress) {
-      // EIP-681 for ERC20 transfer
-      return `ethereum:${tokenAddress}/transfer?address=${vaultAddress}&uint256=${amountInWei}&chainId=${chainId}`;
+    try {
+      // Validasi input
+      if (!vaultAddress || !vaultAddress.startsWith('0x')) {
+        console.error('Invalid vault address:', vaultAddress);
+        throw new Error('Invalid vault address');
+      }
+      
+      if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+        console.error('Invalid amount:', amount);
+        throw new Error('Invalid amount');
+      }
+      
+      // Parse amount dan convert ke wei/satuan terkecil
+      const amountInWei = amount ? parseUnits(amount, 18).toString() : '0';
+      
+      // Log input untuk debugging
+      console.log('Generating EIP-681 URL with:', {
+        vaultAddress,
+        amount,
+        amountInWei,
+        currency,
+        tokenAddress,
+        chainId
+      });
+      
+      // Format URL sesuai EIP-681
+      // https://eips.ethereum.org/EIPS/eip-681
+      let url = '';
+      
+      if (currency === 'ETH') {
+        // Format: ethereum:0xAddress?value=valueInWei&chainId=chainId
+        url = `ethereum:${vaultAddress}?value=${amountInWei}&chainId=${chainId}`;
+      } else if (currency === 'IDRT' && tokenAddress) {
+        // Format: ethereum:0xTokenAddress/transfer?address=0xRecipient&uint256=valueInWei&chainId=chainId
+        url = `ethereum:${tokenAddress}/transfer?address=${vaultAddress}&uint256=${amountInWei}&chainId=${chainId}`;
+      } else {
+        throw new Error(`Unsupported currency: ${currency}`);
+      }
+      
+      console.log('Generated EIP-681 URL:', url);
+      return url;
+    } catch (error) {
+      console.error('Error generating EIP-681 URL:', error);
+      if (error instanceof Error) {
+        console.error('Error details:', {
+          message: error.message,
+          name: error.name,
+          stack: error.stack
+        });
+      }
+      // Return empty string as fallback - caller should handle empty result
+      return '';
     }
-    return '';
   }
 
   const generatePaymentQR = async () => {
     try {
       setIsGenerating(true);
       const total = formData.amount;
+      
+      // Validate inputs
       if (!total || parseFloat(total) <= 0) {
         throw new Error('Jumlah pembayaran harus lebih dari 0');
       }
+      
       if (!formData.category) {
         throw new Error('Kategori harus diisi');
       }
+      
       if (paymentAsset === 'token' && !formData.tokenAddress) {
         throw new Error('Alamat token harus diisi');
       }
-      // Create payment request sesuai ABI
-      const request: any = {
-        id: BusinessDataManager.generatePaymentId(),
-        businessVaultAddress: vaultAddress,
+      
+      // Log untuk debugging
+      console.log('Generating payment QR with data:', {
+        vaultAddress,
         businessName,
         paymentAsset,
         amount: total,
         tokenAddress: paymentAsset === 'token' ? formData.tokenAddress : undefined,
         category: formData.category,
         currency: paymentAsset === 'token' ? 'IDRT' : 'ETH',
+      });
+      
+      // Create payment request sesuai ABI
+      const request: PaymentRequest = {
+        id: BusinessDataManager.generatePaymentId(),
+        businessVaultAddress: vaultAddress,
+        businessName,
+        amount: total,
+        tokenAddress: paymentAsset === 'token' ? formData.tokenAddress : undefined,
+        description: formData.category,
+        currency: paymentAsset === 'token' ? 'IDRT' : 'ETH',
         createdAt: Date.now(),
         expiresAt: Date.now() + (parseInt(formData.expiryMinutes) * 60 * 1000),
-        status: 'pending'
+        status: 'pending',
+        isBusinessTransaction: true
       };
-      BusinessDataManager.createPaymentRequest(request);
-      // --- Ganti: generate QR pakai EIP-681 ---
+      
+      // Simpan ke storage
+      const paymentId = BusinessDataManager.createPaymentRequest(request);
+      
+      if (!paymentId) {
+        throw new Error('Gagal menyimpan payment request');
+      }
+      
+      // Generate QR pakai EIP-681
       const qrData = generateEIP681PaymentUrl({
         vaultAddress,
         amount: total,
         currency: request.currency,
         tokenAddress: request.tokenAddress,
-        chainId: 11155111
+        chainId: 11155111 // Sepolia
       });
+      
+      if (!qrData) {
+        throw new Error('Gagal generate EIP-681 URL');
+      }
+      
+      // Generate QR code image
       const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
         width: 256,
         margin: 2,
-        color: { dark: '#000000', light: '#FFFFFF' }
+        color: { dark: '#000000', light: '#FFFFFF' },
+        errorCorrectionLevel: 'H' // Higher error correction for better scanning
       });
+      
+      // Set state
       setPaymentRequest(request);
       setGeneratedQR(qrData);
       setQRCodeImage(qrCodeDataUrl);
-      console.log('Payment QR generated:', { paymentId: request.id, qrData, request });
+      
+      console.log('Payment QR generated successfully:', { 
+        paymentId: request.id, 
+        qrData,
+        request 
+      });
     } catch (error) {
       console.error('Error generating payment QR:', error);
-      alert('Gagal membuat QR pembayaran: ' + (error as Error).message);
+      
+      let errorMessage = 'Gagal membuat QR pembayaran';
+      if (error instanceof Error) {
+        errorMessage += ': ' + error.message;
+        
+        // Log detail error untuk debugging
+        console.error('Error details:', {
+          message: error.message,
+          name: error.name,
+          stack: error.stack
+        });
+      }
+      
+      // Gunakan alert() karena component tidak memiliki error state
+      // Ideal: tambahkan state untuk error dan tampilkan dalam UI
+      alert(errorMessage);
     } finally {
       setIsGenerating(false);
     }

@@ -39,7 +39,12 @@ interface BusinessVaultProps {
   businessName: string;
   chainId: number;
   onClose?: () => void;
-  onCreatePayment?: (vault: { address: string, name: string, chainId: number }) => void;
+  onCreatePayment?: (vault: { 
+    address: string, 
+    name: string, 
+    chainId: number,
+    onPaymentSuccess?: (paymentId: string, amount: string) => Promise<void>
+  }) => void;
 }
 
 interface VaultTransaction {
@@ -53,12 +58,15 @@ interface VaultTransaction {
   status: 'completed' | 'pending' | 'failed';
 }
 
-const BusinessVault: React.FC<BusinessVaultProps> = ({ vaultAddress, businessName, chainId, onClose }) => {
+const BusinessVault: React.FC<BusinessVaultProps> = (props) => {
+  const { vaultAddress, businessName, chainId, onClose, onCreatePayment } = props;
   const { address, isConnected } = useAccount();
   const currentChainId = useChainId();
   const { data: walletClient } = useWalletClient();
   
+  // Initialize state variables
   const [vaultBalance, setVaultBalance] = useState('0');
+  const [tokenBalance, setTokenBalance] = useState('0');  // Add state for token balance
   const [transactions, setTransactions] = useState<VaultTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -97,7 +105,9 @@ const BusinessVault: React.FC<BusinessVaultProps> = ({ vaultAddress, businessNam
         businessService.getBusinessTransactions(vaultAddress as `0x${string}`)
       ]);
 
+      // Set both native ETH balance and token (IDRT) balance
       setVaultBalance(summary.balance);
+      setTokenBalance(summary.tokenBalance || '0');
       
       // Convert blockchain transactions to component format
       const formattedTransactions: VaultTransaction[] = vaultTransactions.map(tx => ({
@@ -105,10 +115,12 @@ const BusinessVault: React.FC<BusinessVaultProps> = ({ vaultAddress, businessNam
         type: tx.isIncome ? 'deposit' : 'withdraw',
         amount: tx.amount,
         category: tx.category,
-        description: tx.description,
+        description: tx.description || '', // Add fallback for description
         timestamp: new Date(tx.timestamp * 1000).toLocaleString(),
         hash: tx.txHash || '',
-        status: tx.status
+        // Map the status from business transaction to vault transaction status
+        status: tx.status === 'success' ? 'completed' : 
+                tx.status === 'pending' || tx.status === 'processing' ? 'pending' : 'failed'
       }));
 
       setTransactions(formattedTransactions);
@@ -145,16 +157,18 @@ const BusinessVault: React.FC<BusinessVaultProps> = ({ vaultAddress, businessNam
     setError('');
 
     try {
-      // Record income using SmartVerse Business Service
-      const txHash = await businessService.recordIncomeWithIDRT(
+      // Get token address for IDRT
+      const tokenAddress = getContractAddress(chainId, 'MockIDRT') as `0x${string}`;
+      
+      // Record income using SmartVerse Business Service with IDRT token
+      const txHash = await businessService.depositTokenToVault(
         vaultAddress as `0x${string}`,
+        tokenAddress,
         depositAmount,
-        transactionCategory,
-        transactionDescription,
-        walletClient
+        transactionCategory
       );
       
-      setSuccess('Deposit berhasil! Hash: ' + txHash);
+      setSuccess('Deposit IDRT berhasil! Hash: ' + txHash);
       setShowDepositDialog(false);
       
       // Reset form
@@ -183,8 +197,8 @@ const BusinessVault: React.FC<BusinessVaultProps> = ({ vaultAddress, businessNam
       return;
     }
 
-    if (parseFloat(withdrawAmount) > parseFloat(vaultBalance)) {
-      setError('Saldo tidak mencukupi');
+    if (parseFloat(withdrawAmount) > parseFloat(tokenBalance)) {
+      setError('Saldo token tidak mencukupi');
       return;
     }
 
@@ -202,9 +216,7 @@ const BusinessVault: React.FC<BusinessVaultProps> = ({ vaultAddress, businessNam
         vaultAddress as `0x${string}`,
         withdrawAmount,
         transactionCategory,
-        transactionDescription,
-        address as `0x${string}`, // withdraw to user's address
-        walletClient
+        address as `0x${string}` // withdraw to user's address
       );
       
       setSuccess('Withdraw berhasil! Hash: ' + txHash);
@@ -266,11 +278,36 @@ const BusinessVault: React.FC<BusinessVaultProps> = ({ vaultAddress, businessNam
   }
 
   const handleCreatePayment = () => {
+    // Gunakan prop onCreatePayment yang sudah diambil dari parameter
     if (onCreatePayment) {
       onCreatePayment({
         address: vaultAddress,
         name: businessName,
-        chainId
+        chainId,
+        // Tambahkan callback untuk mencatat transaksi
+        onPaymentSuccess: async (paymentId, amount) => {
+          try {
+            console.log(`Recording QR payment ${paymentId} as business transaction`);
+            // Record to blockchain as business transaction
+            const tokenAddress = getContractAddress(chainId, 'MockIDRT') as `0x${string}`;
+            const txHash = await businessService.depositTokenToVault(
+              vaultAddress as `0x${string}`,
+              tokenAddress,
+              amount,
+              'Sales' // Default category untuk QR payment
+            );
+            
+            console.log(`Payment transaction recorded: ${txHash}`);
+            
+            // Refresh data setelah pembayaran berhasil direkam
+            await loadVaultData();
+            
+            return Promise.resolve();
+          } catch (error) {
+            console.error("Failed to record payment as business transaction:", error);
+            return Promise.reject(error);
+          }
+        }
       });
     } else {
       console.log("Payment handler not provided");
@@ -350,7 +387,7 @@ const BusinessVault: React.FC<BusinessVaultProps> = ({ vaultAddress, businessNam
               <CardContent>
                 <div className="text-center mb-6">
                   <p className="text-3xl font-bold text-blue-600 mb-2">
-                    Rp {parseFloat(vaultBalance).toLocaleString()}
+                    Rp {parseFloat(tokenBalance).toLocaleString()}
                   </p>
                   <p className="text-sm text-gray-600">IDRT</p>
                 </div>
@@ -556,41 +593,61 @@ const BusinessVault: React.FC<BusinessVaultProps> = ({ vaultAddress, businessNam
         {/* Transactions Tab */}
         <TabsContent value="transactions" className="space-y-6">
           <Card>
-            <CardHeader>
-              <CardTitle>Semua Transaksi</CardTitle>
-              <CardDescription>
-                Riwayat lengkap transaksi vault
-              </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Semua Transaksi</CardTitle>
+                <CardDescription>
+                  Riwayat lengkap transaksi vault
+                </CardDescription>
+              </div>
+              <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {transactions.map((tx) => (
-                  <div key={tx.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center space-x-4">
-                      {getTransactionIcon(tx.type)}
-                      <div>
-                        <p className="font-medium capitalize">{tx.type}</p>
-                        <p className="text-sm text-gray-600">{tx.description}</p>
-                        <p className="text-xs text-gray-500">{tx.category}</p>
+              {transactions.length === 0 ? (
+                <div className="text-center py-8">
+                  <History className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500">
+                    Belum ada transaksi yang tercatat
+                  </p>
+                  <p className="text-sm text-gray-400 mt-2">
+                    Buat transaksi bisnis baru untuk melihat riwayat
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {transactions.map((tx) => (
+                    <div key={tx.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center space-x-4">
+                        {getTransactionIcon(tx.type)}
+                        <div>
+                          <p className="font-medium capitalize">{tx.type}</p>
+                          <p className="text-sm text-gray-600">{tx.description || 'No description'}</p>
+                          <p className="text-xs text-gray-500">{tx.category}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className={`font-semibold ${getTransactionColor(tx.type)}`}>
+                          {tx.type === 'deposit' ? '+' : '-'}Rp {parseFloat(tx.amount).toLocaleString()}
+                        </p>
+                        <p className="text-sm text-gray-600">{tx.timestamp}</p>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <Badge variant="outline" className="text-xs">
+                            {tx.status}
+                          </Badge>
+                          {tx.hash && (
+                            <Button variant="ghost" size="sm" onClick={() => window.open(`${chainInfo?.explorer}/tx/${tx.hash}`, '_blank')}>
+                              <ExternalLink className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className={`font-semibold ${getTransactionColor(tx.type)}`}>
-                        {tx.type === 'deposit' ? '+' : '-'}Rp {parseFloat(tx.amount).toLocaleString()}
-                      </p>
-                      <p className="text-sm text-gray-600">{tx.timestamp}</p>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <Badge variant="outline" className="text-xs">
-                          {tx.status}
-                        </Badge>
-                        <Button variant="ghost" size="sm" onClick={() => window.open(`${chainInfo?.explorer}/tx/${tx.hash}`, '_blank')}>
-                          <ExternalLink className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

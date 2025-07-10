@@ -89,27 +89,72 @@ const FinancialReport: React.FC<FinancialReportProps> = ({ businessVaults }) => 
       let totalExpenseSum = 0;
       let totalTransactionCount = 0;
       
+      // Track income and expenses by category
+      const incomeByCategory: Record<string, { amount: number, transactions: number }> = {};
+      const expenseByCategory: Record<string, { amount: number, transactions: number }> = {};
+      
       for (const vault of businessVaults) {
         try {
+          // Skip if not matching selected chain (when a specific chain is selected)
+          if (selectedChain !== 'all' && vault.chainId !== selectedChain) {
+            continue;
+          }
+          
           // Get financial summary for this vault
           const summary = await businessService.getBusinessSummary(vault.address as `0x${string}`);
           const transactions = await businessService.getBusinessTransactions(vault.address as `0x${string}`);
           
-          const income = parseFloat(summary.totalIncome);
-          const expense = parseFloat(summary.totalExpenses);
-          const profit = income - expense;
+          console.log(`[FinancialReport] Loaded ${transactions.length} transactions for vault ${vault.address}`);
+          
+          // Calculate income and expense from actual transactions (more accurate than summary)
+          let vaultIncome = 0;
+          let vaultExpense = 0;
+          
+          // Process each transaction
+          for (const tx of transactions) {
+            // For simplicity, we'll use amounts from transactions directly (these are already formatted from ethers)
+            const amount = parseFloat(tx.amount);
+            
+            // Skip invalid amounts
+            if (isNaN(amount)) continue;
+            
+            // Get category (default to 'other' if missing)
+            const category = tx.category || 'other';
+            
+            if (tx.isIncome) {
+              vaultIncome += amount;
+              
+              // Add to income by category
+              if (!incomeByCategory[category]) {
+                incomeByCategory[category] = { amount: 0, transactions: 0 };
+              }
+              incomeByCategory[category].amount += amount;
+              incomeByCategory[category].transactions += 1;
+            } else {
+              vaultExpense += amount;
+              
+              // Add to expense by category
+              if (!expenseByCategory[category]) {
+                expenseByCategory[category] = { amount: 0, transactions: 0 };
+              }
+              expenseByCategory[category].amount += amount;
+              expenseByCategory[category].transactions += 1;
+            }
+          }
+          
+          const profit = vaultIncome - vaultExpense;
           
           summaries.push({
             chainId: vault.chainId,
             chainName: vault.chainName,
-            totalIncome: income,
-            totalExpense: expense,
+            totalIncome: vaultIncome,
+            totalExpense: vaultExpense,
             netProfit: profit,
             transactionCount: transactions.length
           });
           
-          totalIncomeSum += income;
-          totalExpenseSum += expense;
+          totalIncomeSum += vaultIncome;
+          totalExpenseSum += vaultExpense;
           totalTransactionCount += transactions.length;
         } catch (error) {
           console.error(`Error loading data for vault ${vault.address}:`, error);
@@ -122,9 +167,35 @@ const FinancialReport: React.FC<FinancialReportProps> = ({ businessVaults }) => 
       setNetProfit(totalIncomeSum - totalExpenseSum);
       setProfitMargin(totalIncomeSum > 0 ? ((totalIncomeSum - totalExpenseSum) / totalIncomeSum) * 100 : 0);
       
-      // Set empty category summaries for now (could be enhanced to analyze categories)
-      setIncomeSummary([]);
-      setExpenseSummary([]);
+      // Process category summaries
+      const totalIncomeForPercentage = Object.values(incomeByCategory).reduce((sum, cat) => sum + cat.amount, 0);
+      const totalExpenseForPercentage = Object.values(expenseByCategory).reduce((sum, cat) => sum + cat.amount, 0);
+      
+      // Format income by category
+      const incomeSummaries = Object.entries(incomeByCategory).map(([category, data]) => ({
+        category,
+        amount: data.amount,
+        percentage: totalIncomeForPercentage > 0 ? (data.amount / totalIncomeForPercentage) * 100 : 0,
+        transactions: data.transactions
+      }));
+      
+      // Format expense by category
+      const expenseSummaries = Object.entries(expenseByCategory).map(([category, data]) => ({
+        category,
+        amount: data.amount,
+        percentage: totalExpenseForPercentage > 0 ? (data.amount / totalExpenseForPercentage) * 100 : 0,
+        transactions: data.transactions
+      }));
+      
+      // Sort by amount (highest first)
+      incomeSummaries.sort((a, b) => b.amount - a.amount);
+      expenseSummaries.sort((a, b) => b.amount - a.amount);
+      
+      setIncomeSummary(incomeSummaries);
+      setExpenseSummary(expenseSummaries);
+      
+      console.log('[FinancialReport] Income summary:', incomeSummaries);
+      console.log('[FinancialReport] Expense summary:', expenseSummaries);
       
     } catch (error) {
       console.error('Error loading financial data:', error);
@@ -134,7 +205,7 @@ const FinancialReport: React.FC<FinancialReportProps> = ({ businessVaults }) => 
   };
 
   const formatCurrency = (amount: number) => {
-    return `Rp ${amount.toLocaleString()}`;
+    return amount.toLocaleString();
   };
 
   const getChainColor = (chainId: number) => {
@@ -212,8 +283,9 @@ const FinancialReport: React.FC<FinancialReportProps> = ({ businessVaults }) => 
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Pendapatan</p>
                 <p className="text-2xl font-bold text-green-600">
-                  {formatCurrency(totalIncome)}
+                  Rp {formatCurrency(totalIncome)}
                 </p>
+                <p className="text-sm text-gray-500">IDRT</p>
               </div>
               <div className="p-3 bg-green-100 rounded-full">
                 <TrendingUp className="h-6 w-6 text-green-600" />
@@ -228,8 +300,9 @@ const FinancialReport: React.FC<FinancialReportProps> = ({ businessVaults }) => 
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Pengeluaran</p>
                 <p className="text-2xl font-bold text-red-600">
-                  {formatCurrency(totalExpense)}
+                  Rp {formatCurrency(totalExpense)}
                 </p>
+                <p className="text-sm text-gray-500">IDRT</p>
               </div>
               <div className="p-3 bg-red-100 rounded-full">
                 <TrendingDown className="h-6 w-6 text-red-600" />
@@ -244,8 +317,9 @@ const FinancialReport: React.FC<FinancialReportProps> = ({ businessVaults }) => 
               <div>
                 <p className="text-sm font-medium text-gray-600">Laba Bersih</p>
                 <p className="text-2xl font-bold text-blue-600">
-                  {formatCurrency(netProfit)}
+                  Rp {formatCurrency(netProfit)}
                 </p>
+                <p className="text-sm text-gray-500">IDRT</p>
               </div>
               <div className="p-3 bg-blue-100 rounded-full">
                 <DollarSign className="h-6 w-6 text-blue-600" />
@@ -298,16 +372,16 @@ const FinancialReport: React.FC<FinancialReportProps> = ({ businessVaults }) => 
                   </div>
                   <div className="space-y-1">
                     <div className="flex justify-between text-sm">
-                      <span className="text-green-600">Pendapatan</span>
-                      <span className="font-medium">{formatCurrency(chain.totalIncome)}</span>
+                      <span className="text-green-600">Pendapatan (IDRT)</span>
+                      <span className="font-medium">Rp {formatCurrency(chain.totalIncome)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-red-600">Pengeluaran</span>
-                      <span className="font-medium">{formatCurrency(chain.totalExpense)}</span>
+                      <span className="text-red-600">Pengeluaran (IDRT)</span>
+                      <span className="font-medium">Rp {formatCurrency(chain.totalExpense)}</span>
                     </div>
                     <div className="flex justify-between text-sm border-t pt-1">
-                      <span className="font-medium">Laba Bersih</span>
-                      <span className="font-bold text-blue-600">{formatCurrency(chain.netProfit)}</span>
+                      <span className="font-medium">Laba Bersih (IDRT)</span>
+                      <span className="font-bold text-blue-600">Rp {formatCurrency(chain.netProfit)}</span>
                     </div>
                   </div>
                 </div>
@@ -340,7 +414,7 @@ const FinancialReport: React.FC<FinancialReportProps> = ({ businessVaults }) => 
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-green-600">{formatCurrency(item.amount)}</span>
+                    <span className="text-green-600">Rp {formatCurrency(item.amount)} IDRT</span>
                     <span className="text-gray-600">{item.transactions} transaksi</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
@@ -379,7 +453,7 @@ const FinancialReport: React.FC<FinancialReportProps> = ({ businessVaults }) => 
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-red-600">{formatCurrency(item.amount)}</span>
+                    <span className="text-red-600">Rp {formatCurrency(item.amount)} IDRT</span>
                     <span className="text-gray-600">{item.transactions} transaksi</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">

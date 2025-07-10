@@ -43,6 +43,7 @@ interface BusinessVault {
   name: string;
   owner: string;
   balance: string;
+  tokenBalance: string; // IDRT balance
   chainId: number;
   chainName: string;
   transactions: number;
@@ -149,6 +150,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
             name: businessName, // tetap tampilkan meskipun kosong
             owner: address,
             balance: summary.balance,
+            tokenBalance: summary.tokenBalance || '0',
             chainId: 11155111,
             chainName: 'Sepolia',
             transactions: summary.transactionCount,
@@ -161,7 +163,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
             id: tx.id,
             type: (tx.isIncome ? 'deposit' : 'withdraw') as 'deposit' | 'withdraw' | 'transfer',
             amount: tx.amount,
-            currency: 'IDRT',
+            currency: tx.isToken ? tx.tokenSymbol || 'IDRT' : 'ETH',
             from: tx.from,
             to: tx.to,
             timestamp: formatDate(tx.timestamp),
@@ -171,9 +173,30 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
             hash: tx.txHash || ''
           }));
           setRecentTransactions(formattedTransactions);
-          setTotalBalance(summary.balance);
-          setMonthlyIncome(summary.totalIncome);
-          setMonthlyExpense(summary.totalExpenses);
+          
+          // Gunakan tokenBalance sebagai total balance jika tersedia
+          if (summary.tokenBalance && parseFloat(summary.tokenBalance) > 0) {
+            setTotalBalance(summary.tokenBalance);
+            console.log('Using token balance as total balance:', summary.tokenBalance);
+          } else {
+            setTotalBalance(summary.balance);
+            console.log('Using ETH balance as total balance:', summary.balance);
+          }
+          
+          // Gunakan tokenIncome dan tokenExpense jika tersedia
+          if (summary.tokenIncome && parseFloat(summary.tokenIncome) > 0) {
+            setMonthlyIncome(summary.tokenIncome);
+            console.log('Using token income:', summary.tokenIncome);
+          } else {
+            setMonthlyIncome(summary.totalIncome);
+          }
+          
+          if (summary.tokenExpense && parseFloat(summary.tokenExpense) > 0) {
+            setMonthlyExpense(summary.tokenExpense);
+            console.log('Using token expense:', summary.tokenExpense);
+          } else {
+            setMonthlyExpense(summary.totalExpenses);
+          }
         } else {
           // No business vault found or not registered
           setBusinessVaults([]);
@@ -376,7 +399,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Saldo</p>
+                  <p className="text-sm font-medium text-gray-600">Total Saldo (IDRT)</p>
                   <p className="text-2xl font-bold text-gray-900">
                     {totalBalance === '0' ? 'Rp 0' : `Rp ${parseFloat(totalBalance).toLocaleString()}`}
                   </p>
@@ -392,7 +415,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Pendapatan</p>
+                  <p className="text-sm font-medium text-gray-600">Total Pendapatan (IDRT)</p>
                   <p className="text-2xl font-bold text-green-600">
                     {monthlyIncome === '0' ? 'Rp 0' : `Rp ${parseFloat(monthlyIncome).toLocaleString()}`}
                   </p>
@@ -408,7 +431,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Pengeluaran</p>
+                  <p className="text-sm font-medium text-gray-600">Total Pengeluaran (IDRT)</p>
                   <p className="text-2xl font-bold text-red-600">
                     {monthlyExpense === '0' ? 'Rp 0' : `Rp ${parseFloat(monthlyExpense).toLocaleString()}`}
                   </p>
@@ -484,7 +507,11 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
                           </div>
                           <div className="text-right">
                             <p className="font-semibold">
-                              {vault.balance === '0' ? 'Rp 0' : `Rp ${parseFloat(vault.balance).toLocaleString()}`}
+                              {parseFloat(vault.tokenBalance) > 0 
+                                ? `Rp ${parseFloat(vault.tokenBalance).toLocaleString()} IDRT` 
+                                : parseFloat(vault.balance) > 0 
+                                ? `${parseFloat(vault.balance).toLocaleString()} ETH` 
+                                : 'Rp 0'}
                             </p>
                             <p className="text-sm text-gray-600">{vault.transactions} transaksi</p>
                           </div>
@@ -524,7 +551,9 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
                           </div>
                           <div className="text-right">
                             <p className="font-semibold">
-                              {tx.amount === '0' ? 'Rp 0' : `Rp ${parseFloat(tx.amount).toLocaleString()}`}
+                              {tx.currency === 'IDRT' 
+                                ? `Rp ${parseFloat(tx.amount).toLocaleString()} ${tx.currency}`
+                                : `${parseFloat(tx.amount).toLocaleString()} ${tx.currency}`}
                             </p>
                             {getStatusBadge(tx.status)}
                           </div>

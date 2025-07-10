@@ -24,6 +24,7 @@ export interface PaymentRequest {
   description: string;
   isBusinessTransaction: boolean;
   tokenAddress?: string; // tambahkan untuk pembayaran token
+  transactionRecorded?: boolean; // flag untuk menandai apakah transaksi sudah tercatat di blockchain
   customerInfo?: {
     name?: string;
     email?: string;
@@ -80,8 +81,39 @@ export class BusinessDataManager {
   }
 
   static getAllPaymentRequests(): Record<string, PaymentRequest> {
-    const data = localStorage.getItem(PAYMENT_REQUESTS_KEY);
-    return data ? JSON.parse(data) : {};
+    try {
+      const data = localStorage.getItem(PAYMENT_REQUESTS_KEY);
+      if (!data) {
+        return {};
+      }
+      
+      const parsedData = JSON.parse(data);
+      
+      // Validate data structure
+      if (typeof parsedData !== 'object' || parsedData === null) {
+        console.error('Payment requests data is not an object:', parsedData);
+        return {};
+      }
+      
+      return parsedData;
+    } catch (error) {
+      console.error('Error getting payment requests:', error);
+      if (error instanceof Error) {
+        console.error('Error details:', {
+          message: error.message,
+          name: error.name,
+          stack: error.stack
+        });
+      }
+      
+      // Reset storage if corrupted
+      if (error instanceof SyntaxError) {
+        console.warn('Payment requests data corrupted, resetting storage');
+        localStorage.removeItem(PAYMENT_REQUESTS_KEY);
+      }
+      
+      return {};
+    }
   }
 
   static getPaymentRequest(id: string): PaymentRequest | null {
@@ -100,11 +132,39 @@ export class BusinessDataManager {
   }
 
   // Update payment request (status, dsb)
-  static updatePaymentRequest(id: string, updates: Partial<PaymentRequest>): void {
-    const requests = this.getAllPaymentRequests();
-    if (requests[id]) {
+  static updatePaymentRequest(id: string, updates: Partial<PaymentRequest>): boolean {
+    try {
+      const requests = this.getAllPaymentRequests();
+      if (!requests[id]) {
+        console.error(`Payment request with ID ${id} not found`);
+        return false;
+      }
+      
+      // Log status transition for debugging
+      if (updates.status && updates.status !== requests[id].status) {
+        console.log(`Payment status transition for ${id}: ${requests[id].status} -> ${updates.status}`);
+      }
+      
+      // If status is changing to success, mark as recorded on blockchain
+      if (updates.status === 'success' && requests[id].status !== 'success') {
+        updates.transactionRecorded = true;
+      }
+      
       requests[id] = { ...requests[id], ...updates };
       localStorage.setItem(PAYMENT_REQUESTS_KEY, JSON.stringify(requests));
+      return true;
+    } catch (error) {
+      console.error('Error updating payment request:', error);
+      console.error('Request ID:', id);
+      console.error('Updates:', updates);
+      if (error instanceof Error) {
+        console.error('Error details:', {
+          message: error.message,
+          name: error.name,
+          stack: error.stack
+        });
+      }
+      return false;
     }
   }
 
