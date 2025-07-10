@@ -24,6 +24,7 @@ import { BusinessDataManager, PaymentRequest } from '../services/businessDataMan
 import { useAccount } from 'wagmi';
 import QRCode from 'qrcode';
 import { BUSINESS_CONTRACTS } from '../contracts/BusinessContracts';
+import { parseUnits } from 'viem';
 
 interface BusinessPaymentProps {
   vaultAddress: string;
@@ -79,6 +80,30 @@ const BusinessPayment: React.FC<BusinessPaymentProps> = ({
     }));
   };
 
+  // Utility: generate EIP-681 payment URL
+  function generateEIP681PaymentUrl({
+    vaultAddress,
+    amount,
+    currency,
+    tokenAddress,
+    chainId = 11155111
+  }: {
+    vaultAddress: string;
+    amount: string;
+    currency: 'ETH' | 'IDRT';
+    tokenAddress?: string;
+    chainId?: number;
+  }) {
+    const amountInWei = amount ? parseUnits(amount, 18).toString() : '0';
+    if (currency === 'ETH') {
+      return `ethereum:${vaultAddress}?value=${amountInWei}&chainId=${chainId}`;
+    } else if (currency === 'IDRT' && tokenAddress) {
+      // EIP-681 for ERC20 transfer
+      return `ethereum:${tokenAddress}/transfer?address=${vaultAddress}&uint256=${amountInWei}&chainId=${chainId}`;
+    }
+    return '';
+  }
+
   const generatePaymentQR = async () => {
     try {
       setIsGenerating(true);
@@ -107,7 +132,14 @@ const BusinessPayment: React.FC<BusinessPaymentProps> = ({
         status: 'pending'
       };
       BusinessDataManager.createPaymentRequest(request);
-      const qrData = BusinessDataManager.generatePaymentQRData(request);
+      // --- Ganti: generate QR pakai EIP-681 ---
+      const qrData = generateEIP681PaymentUrl({
+        vaultAddress,
+        amount: total,
+        currency: request.currency,
+        tokenAddress: request.tokenAddress,
+        chainId: 11155111
+      });
       const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
         width: 256,
         margin: 2,
