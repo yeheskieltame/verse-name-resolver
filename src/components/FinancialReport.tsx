@@ -28,6 +28,21 @@ interface FinancialReportProps {
     chainName: string;
     balance: string;
   }>;
+  transactions?: Array<{
+    id: string;
+    type: 'deposit' | 'withdraw' | 'transfer';
+    amount: string;
+    currency: string;
+    from: string;
+    to: string;
+    timestamp: string;
+    chainId: number;
+    chainName: string;
+    status: 'pending' | 'processing' | 'success' | 'failed';
+    hash: string;
+    category?: string;
+    description?: string;
+  }>;
 }
 
 interface ChainSummary {
@@ -46,7 +61,7 @@ interface CategorySummary {
   transactions: number;
 }
 
-const FinancialReport: React.FC<FinancialReportProps> = ({ businessVaults }) => {
+const FinancialReport: React.FC<FinancialReportProps> = ({ businessVaults, transactions = [] }) => {
   const { address } = useAccount();
   
   const [selectedPeriod, setSelectedPeriod] = useState('monthly');
@@ -77,7 +92,7 @@ const FinancialReport: React.FC<FinancialReportProps> = ({ businessVaults }) => 
       setProfitMargin(0);
       setLoading(false);
     }
-  }, [businessVaults, selectedPeriod, selectedChain]);
+  }, [businessVaults, selectedPeriod, selectedChain, transactions]);
 
   const loadFinancialData = async () => {
     setLoading(true);
@@ -93,71 +108,147 @@ const FinancialReport: React.FC<FinancialReportProps> = ({ businessVaults }) => 
       const incomeByCategory: Record<string, { amount: number, transactions: number }> = {};
       const expenseByCategory: Record<string, { amount: number, transactions: number }> = {};
       
-      for (const vault of businessVaults) {
-        try {
-          // Skip if not matching selected chain (when a specific chain is selected)
-          if (selectedChain !== 'all' && vault.chainId !== selectedChain) {
-            continue;
+      // Process all transactions if they were provided directly
+      if (transactions && transactions.length > 0) {
+        console.log('[FinancialReport] Using provided transactions:', transactions.length);
+        
+        // Filter transactions based on selected chain if needed
+        const filteredTransactions = selectedChain === 'all' 
+          ? transactions 
+          : transactions.filter(tx => tx.chainId === selectedChain);
+        
+        // Group by chain
+        const transactionsByChain = new Map<number, Array<any>>();
+        
+        for (const tx of filteredTransactions) {
+          // Skip invalid transactions
+          if (!tx.amount || isNaN(parseFloat(tx.amount))) continue;
+          
+          // Add to chain group
+          if (!transactionsByChain.has(tx.chainId)) {
+            transactionsByChain.set(tx.chainId, []);
           }
+          transactionsByChain.get(tx.chainId)?.push(tx);
           
-          // Get financial summary for this vault
-          const summary = await businessService.getBusinessSummary(vault.address as `0x${string}`);
-          const transactions = await businessService.getBusinessTransactions(vault.address as `0x${string}`);
+          // Process transaction for category analysis
+          const amount = parseFloat(tx.amount);
+          const category = tx.category || 'other';
           
-          console.log(`[FinancialReport] Loaded ${transactions.length} transactions for vault ${vault.address}`);
+          if (tx.type === 'deposit') {
+            // Income
+            if (!incomeByCategory[category]) {
+              incomeByCategory[category] = { amount: 0, transactions: 0 };
+            }
+            incomeByCategory[category].amount += amount;
+            incomeByCategory[category].transactions += 1;
+          } else {
+            // Expense
+            if (!expenseByCategory[category]) {
+              expenseByCategory[category] = { amount: 0, transactions: 0 };
+            }
+            expenseByCategory[category].amount += amount;
+            expenseByCategory[category].transactions += 1;
+          }
+        }
+        
+        // Calculate summaries per chain
+        for (const [chainId, chainTxs] of transactionsByChain.entries()) {
+          const chainName = chainTxs[0]?.chainName || getChainName(chainId);
           
-          // Calculate income and expense from actual transactions (more accurate than summary)
-          let vaultIncome = 0;
-          let vaultExpense = 0;
+          let chainIncome = 0;
+          let chainExpense = 0;
           
-          // Process each transaction
-          for (const tx of transactions) {
-            // For simplicity, we'll use amounts from transactions directly (these are already formatted from ethers)
+          for (const tx of chainTxs) {
             const amount = parseFloat(tx.amount);
-            
-            // Skip invalid amounts
-            if (isNaN(amount)) continue;
-            
-            // Get category (default to 'other' if missing)
-            const category = tx.category || 'other';
-            
-            if (tx.isIncome) {
-              vaultIncome += amount;
-              
-              // Add to income by category
-              if (!incomeByCategory[category]) {
-                incomeByCategory[category] = { amount: 0, transactions: 0 };
-              }
-              incomeByCategory[category].amount += amount;
-              incomeByCategory[category].transactions += 1;
+            if (tx.type === 'deposit') {
+              chainIncome += amount;
             } else {
-              vaultExpense += amount;
-              
-              // Add to expense by category
-              if (!expenseByCategory[category]) {
-                expenseByCategory[category] = { amount: 0, transactions: 0 };
-              }
-              expenseByCategory[category].amount += amount;
-              expenseByCategory[category].transactions += 1;
+              chainExpense += amount;
             }
           }
           
-          const profit = vaultIncome - vaultExpense;
+          const chainSummary: ChainSummary = {
+            chainId,
+            chainName,
+            totalIncome: chainIncome,
+            totalExpense: chainExpense,
+            netProfit: chainIncome - chainExpense,
+            transactionCount: chainTxs.length
+          };
           
-          summaries.push({
-            chainId: vault.chainId,
-            chainName: vault.chainName,
-            totalIncome: vaultIncome,
-            totalExpense: vaultExpense,
-            netProfit: profit,
-            transactionCount: transactions.length
-          });
-          
-          totalIncomeSum += vaultIncome;
-          totalExpenseSum += vaultExpense;
-          totalTransactionCount += transactions.length;
-        } catch (error) {
-          console.error(`Error loading data for vault ${vault.address}:`, error);
+          summaries.push(chainSummary);
+          totalIncomeSum += chainIncome;
+          totalExpenseSum += chainExpense;
+          totalTransactionCount += chainTxs.length;
+        }
+      } else {
+        // Fallback to fetching transactions for each vault
+        for (const vault of businessVaults) {
+          try {
+            // Skip if not matching selected chain (when a specific chain is selected)
+            if (selectedChain !== 'all' && vault.chainId !== selectedChain) {
+              continue;
+            }
+            
+            // Get financial summary for this vault
+            const summary = await businessService.getBusinessSummary(vault.address as `0x${string}`);
+            const transactions = await businessService.getBusinessTransactions(vault.address as `0x${string}`);
+            
+            console.log(`[FinancialReport] Loaded ${transactions.length} transactions for vault ${vault.address}`);
+            
+            // Calculate income and expense from actual transactions (more accurate than summary)
+            let vaultIncome = 0;
+            let vaultExpense = 0;
+            
+            // Process each transaction
+            for (const tx of transactions) {
+              // For simplicity, we'll use amounts from transactions directly (these are already formatted from ethers)
+              const amount = parseFloat(tx.amount);
+              
+              // Skip invalid amounts
+              if (isNaN(amount)) continue;
+              
+              // Get category (default to 'other' if missing)
+              const category = tx.category || 'other';
+              
+              if (tx.isIncome) {
+                vaultIncome += amount;
+                
+                // Add to income by category
+                if (!incomeByCategory[category]) {
+                  incomeByCategory[category] = { amount: 0, transactions: 0 };
+                }
+                incomeByCategory[category].amount += amount;
+                incomeByCategory[category].transactions += 1;
+              } else {
+                vaultExpense += amount;
+                
+                // Add to expense by category
+                if (!expenseByCategory[category]) {
+                  expenseByCategory[category] = { amount: 0, transactions: 0 };
+                }
+                expenseByCategory[category].amount += amount;
+                expenseByCategory[category].transactions += 1;
+              }
+            }
+            
+            const profit = vaultIncome - vaultExpense;
+            
+            summaries.push({
+              chainId: vault.chainId,
+              chainName: vault.chainName,
+              totalIncome: vaultIncome,
+              totalExpense: vaultExpense,
+              netProfit: profit,
+              transactionCount: transactions.length
+            });
+            
+            totalIncomeSum += vaultIncome;
+            totalExpenseSum += vaultExpense;
+            totalTransactionCount += transactions.length;
+          } catch (error) {
+            console.error(`Error loading data for vault ${vault.address}:`, error);
+          }
         }
       }
       
@@ -206,6 +297,11 @@ const FinancialReport: React.FC<FinancialReportProps> = ({ businessVaults }) => 
 
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString();
+  };
+
+  const getChainName = (chainId: number): string => {
+    const chain = Object.values(BUSINESS_CONTRACTS).find(c => c.chainId === chainId);
+    return chain?.name || 'Unknown Network';
   };
 
   const getChainColor = (chainId: number) => {

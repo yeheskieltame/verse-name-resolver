@@ -63,6 +63,8 @@ interface Transaction {
   chainName: string;
   status: 'pending' | 'processing' | 'success' | 'failed';
   hash: string;
+  category?: string;
+  description?: string;
 }
 
 const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusiness, onViewVault }) => {
@@ -71,6 +73,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
   
   const [businessVaults, setBusinessVaults] = useState<BusinessVault[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [totalBalance, setTotalBalance] = useState('0');
   const [monthlyIncome, setMonthlyIncome] = useState('0');
   const [monthlyExpense, setMonthlyExpense] = useState('0');
@@ -80,6 +83,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedVaultForPayment, setSelectedVaultForPayment] = useState<BusinessVault | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Load real data from blockchain
   useEffect(() => {
@@ -102,6 +106,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
   const loadBusinessData = async () => {
     try {
       setLoading(true);
+      setRefreshing(true);
       console.log('Loading business data for address:', address);
       console.log('Current chain ID:', chainId);
       console.log('Expected chain ID for business (Sepolia):', 11155111);
@@ -131,7 +136,8 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
           }
           try {
             transactions = await businessService.getBusinessTransactions(vaultAddrTyped);
-            console.log('Business transactions loaded:', transactions);
+            console.log('Business transactions loaded:', transactions.length, 'transactions');
+            console.log('Sample transaction:', transactions.length > 0 ? transactions[0] : 'No transactions');
           } catch (txError) {
             console.error('Error loading business transactions:', txError);
             transactions = [];
@@ -158,8 +164,9 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
             category: 'general'
           }];
           setBusinessVaults(vaultData);
-          // Set recent transactions (could be empty array)
-          const formattedTransactions = transactions.slice(0, 5).map(tx => ({
+          
+          // Format all transactions
+          const formattedTransactions = transactions.map(tx => ({
             id: tx.id,
             type: (tx.isIncome ? 'deposit' : 'withdraw') as 'deposit' | 'withdraw' | 'transfer',
             amount: tx.amount,
@@ -170,9 +177,23 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
             chainId: tx.chainId,
             chainName: getChainName(tx.chainId),
             status: tx.status,
-            hash: tx.txHash || ''
+            hash: tx.txHash || '',
+            category: tx.category || '',
+            description: tx.description || ''
           }));
-          setRecentTransactions(formattedTransactions);
+          
+          // Sort transactions by timestamp, newest first
+          formattedTransactions.sort((a, b) => {
+            const dateA = new Date(a.timestamp).getTime();
+            const dateB = new Date(b.timestamp).getTime();
+            return dateB - dateA;
+          });
+          
+          // Store all transactions
+          setAllTransactions(formattedTransactions);
+          
+          // Set only 5 most recent transactions for the overview tab
+          setRecentTransactions(formattedTransactions.slice(0, 5));
           
           // Gunakan tokenBalance sebagai total balance jika tersedia
           if (summary.tokenBalance && parseFloat(summary.tokenBalance) > 0) {
@@ -271,6 +292,12 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
       default:
         return <Badge variant="outline">Unknown</Badge>;
     }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadBusinessData();
+    setRefreshing(false);
   };
 
   const handleCreatePayment = (vault: BusinessVault) => {
@@ -377,8 +404,8 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
               )}
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={loadBusinessData}>
-                <Download className="h-4 w-4 mr-2" />
+              <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
+                <Download className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
                 Refresh Data
               </Button>
               <Button variant="outline" size="sm">
@@ -644,14 +671,20 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
           {/* Transactions Tab */}
           <TabsContent value="transactions" className="space-y-6">
             <Card>
-              <CardHeader>
-                <CardTitle>Riwayat Transaksi</CardTitle>
-                <CardDescription>
-                  Semua transaksi dari seluruh bisnis dan jaringan
-                </CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Riwayat Transaksi</CardTitle>
+                  <CardDescription>
+                    Semua transaksi dari seluruh bisnis dan jaringan
+                  </CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={loadBusinessData} disabled={refreshing}>
+                  <Download className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                  Refresh Data
+                </Button>
               </CardHeader>
               <CardContent>
-                {recentTransactions.length === 0 ? (
+                {allTransactions.length === 0 ? (
                   <div className="text-center py-12">
                     <Activity className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -663,7 +696,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {recentTransactions.map((tx) => (
+                    {allTransactions.map((tx) => (
                       <div key={tx.id} className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="flex items-center space-x-4">
                           {getTransactionIcon(tx.type)}
@@ -672,13 +705,35 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
                             <p className="text-sm text-gray-600">
                               {tx.timestamp} • {tx.chainName}
                             </p>
+                            {tx.description && (
+                              <p className="text-sm text-gray-700">{tx.description}</p>
+                            )}
+                            {tx.category && (
+                              <Badge variant="outline" className="mt-1 text-xs">
+                                {tx.category}
+                              </Badge>
+                            )}
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold">
-                            {tx.amount === '0' ? 'Rp 0' : `Rp ${parseFloat(tx.amount).toLocaleString()}`}
+                          <p className={`font-semibold ${tx.type === 'deposit' ? 'text-green-600' : 'text-red-600'}`}>
+                            {tx.type === 'deposit' ? '+' : '-'}
+                            {tx.currency === 'IDRT' 
+                              ? `Rp ${parseFloat(tx.amount).toLocaleString()}`
+                              : `${parseFloat(tx.amount).toLocaleString()} ${tx.currency}`}
                           </p>
                           {getStatusBadge(tx.status)}
+                          {tx.hash && (
+                            <a 
+                              href={`https://sepolia.etherscan.io/tx/${tx.hash}`} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-600 hover:underline flex items-center justify-end mt-1"
+                            >
+                              <span>View on Etherscan</span>
+                              <ArrowUpRight className="ml-1 h-3 w-3" />
+                            </a>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -690,7 +745,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
 
           {/* Reports Tab */}
           <TabsContent value="reports" className="space-y-6">
-            <FinancialReport businessVaults={businessVaults} />
+            <FinancialReport businessVaults={businessVaults} transactions={allTransactions} />
           </TabsContent>
         </Tabs>
       </div>
