@@ -719,6 +719,35 @@ export class CrossChainNameService implements CrossChainNameResolver {
   getActualHubChainId(): number {
     return this.actualHubChainId;
   }
+
+  /**
+   * Generate QR code for business vault with depositNative
+   * Returns URL to the DApp with necessary parameters
+   */
+  generateBusinessVaultQR(
+    vaultAddress: string, 
+    amount?: string, 
+    category: string = 'Pembayaran QR',
+    tokenAddress?: string
+  ): string {
+    // Create URL to DApp with all parameters needed
+    let url = `https://smartverse-id.vercel.app/pay?address=${vaultAddress}`;
+    
+    // Add optional parameters
+    if (amount) {
+      url += `&amount=${amount}`;
+    }
+    
+    if (category) {
+      url += `&category=${encodeURIComponent(category)}`;
+    }
+    
+    if (tokenAddress) {
+      url += `&token=${tokenAddress}`;
+    }
+    
+    return url;
+  }
 }
 
 // Singleton instance

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { parseUnits } from 'viem';
 import QRCode from 'qrcode';
 import { BUSINESS_CONTRACTS } from '../contracts/BusinessContracts';
+import { crossChainNameService } from '@/services/crossChainNameService';
 
 interface QRBusinessGeneratorProps {
   vaultAddress: `0x${string}`;
@@ -71,7 +72,7 @@ const QRBusinessGenerator: React.FC<QRBusinessGeneratorProps> = ({
       setIsGenerating(true);
       
       // Validasi input
-      if (!formData.amount || parseFloat(formData.amount) <= 0) {
+      if (qrMode === 'dynamic' && (!formData.amount || parseFloat(formData.amount) <= 0)) {
         throw new Error('Jumlah pembayaran harus lebih dari 0');
       }
       
@@ -85,26 +86,22 @@ const QRBusinessGenerator: React.FC<QRBusinessGeneratorProps> = ({
       
       let url = '';
       
-      // QR Statis (format EIP-681)
+      // Gunakan service untuk generate URL yang benar
       if (qrMode === 'static') {
-        const amountInWei = formData.amount ? parseUnits(formData.amount, 18).toString() : '0';
-        
-        // Format URL sesuai EIP-681
-        url = `ethereum:${vaultAddress}?value=${amountInWei}&chainId=11155111`;
-      } 
-      // QR Dinamis (Custom SmartVerse URL)
-      else {
-        // Format URL dengan parameter lengkap
-        url = `https://app.smartverse.com/pay?address=${vaultAddress}&amount=${formData.amount}`;
-        
-        // Tambahkan parameter opsional
-        if (formData.category) {
-          url += `&category=${encodeURIComponent(formData.category)}`;
-        }
-        
-        if (formData.currency === 'IDRT' && formData.tokenAddress) {
-          url += `&token=${formData.tokenAddress}`;
-        }
+        // QR Statis - tanpa amount
+        url = crossChainNameService.generateBusinessVaultQR(
+          vaultAddress,
+          undefined,
+          formData.category
+        );
+      } else {
+        // QR Dinamis - dengan amount
+        url = crossChainNameService.generateBusinessVaultQR(
+          vaultAddress,
+          formData.amount,
+          formData.category,
+          formData.currency === 'IDRT' ? formData.tokenAddress : undefined
+        );
       }
       
       return url;
@@ -208,7 +205,7 @@ const QRBusinessGenerator: React.FC<QRBusinessGeneratorProps> = ({
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                QR Statis hanya berisi alamat vault bisnis Anda. Pelanggan perlu memasukkan jumlah dan kategori sendiri.
+                QR Statis berisi link ke SmartVerse DApp. Pelanggan akan dipandu untuk melakukan deposit ke Vault Anda.
               </AlertDescription>
             </Alert>
             
@@ -227,7 +224,7 @@ const QRBusinessGenerator: React.FC<QRBusinessGeneratorProps> = ({
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                QR Dinamis berisi semua informasi pembayaran. Pelanggan hanya perlu memindai dan mengkonfirmasi.
+                QR Dinamis berisi link ke SmartVerse DApp dengan jumlah dan kategori. Pelanggan hanya perlu memindai dan mengkonfirmasi.
               </AlertDescription>
             </Alert>
             
