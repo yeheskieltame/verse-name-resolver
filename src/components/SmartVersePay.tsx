@@ -12,8 +12,7 @@ import { QrCode, Download, Scan, Copy, Wallet, DollarSign, AlertCircle, CheckCir
 import { useAccount, useChainId } from 'wagmi';
 import { QRCodeSVG } from 'qrcode.react';
 import { crossChainNameService, CrossChainNameService } from "@/services/crossChainNameService";
-import { QRScanner } from "./QRScanner";
-import { QRBusinessPayment } from "./QRBusinessPayment";
+import { UnifiedQRScanner } from "./UnifiedQRScanner";
 
 export const SmartVersePay = () => {
   const { address: userAddress, isConnected } = useAccount();
@@ -414,7 +413,7 @@ export const SmartVersePay = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <QRScanner />
+                  <UnifiedQRScanner />
                 </CardContent>
               </Card>
             </div>
@@ -433,9 +432,45 @@ export const SmartVersePay = () => {
                 Accept and process business payments via QR codes
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              {/* Business QR Payment Component */}
-              <QRBusinessPayment />
+            <CardContent className="space-y-4">
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Bisnis Anda dapat menerima pembayaran langsung ke vault menggunakan QR code yang berisi alamat vault dan kategori pembayaran.
+                </AlertDescription>
+              </Alert>
+              
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <h3 className="text-md font-medium mb-2">Buat QR Code Bisnis</h3>
+                  <p className="text-sm text-gray-600 mb-2">
+                    Buat QR code yang akan mengarahkan pelanggan untuk melakukan deposit ke vault bisnis Anda.
+                  </p>
+                  <Button 
+                    variant="outline"
+                    onClick={() => window.location.href = '/dashboard/business'}
+                    className="w-full"
+                  >
+                    <QrCode className="w-4 h-4 mr-2" />
+                    Buat QR Code Bisnis
+                  </Button>
+                </div>
+                
+                <div>
+                  <h3 className="text-md font-medium mb-2">Scan QR Code</h3>
+                  <p className="text-sm text-gray-600 mb-2">
+                    Pindai QR code untuk melakukan pembayaran ke bisnis lain.
+                  </p>
+                  <Button 
+                    variant="outline"
+                    onClick={() => setMainTab('personal')}
+                    className="w-full"
+                  >
+                    <Scan className="w-4 h-4 mr-2" />
+                    Ke Menu Scan QR
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
