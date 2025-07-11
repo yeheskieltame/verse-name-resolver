@@ -100,7 +100,8 @@ const QRBusinessGenerator: React.FC<QRBusinessGeneratorProps> = ({
           vaultAddress,
           formData.amount,
           formData.category,
-          formData.currency === 'IDRT' ? formData.tokenAddress : undefined
+          formData.currency === 'IDRT' ? formData.tokenAddress : undefined,
+          formData.currency === 'IDRT' ? formData.currency : undefined
         );
       }
       

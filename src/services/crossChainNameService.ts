@@ -728,7 +728,8 @@ export class CrossChainNameService implements CrossChainNameResolver {
     vaultAddress: string, 
     amount?: string, 
     category: string = 'Pembayaran QR',
-    tokenAddress?: string
+    tokenAddress?: string,
+    tokenSymbol: string = 'IDRT'
   ): string {
     // Create URL to DApp with all parameters needed
     let url = `https://smartverse-id.vercel.app/pay?address=${vaultAddress}`;
@@ -744,6 +745,7 @@ export class CrossChainNameService implements CrossChainNameResolver {
     
     if (tokenAddress) {
       url += `&token=${tokenAddress}`;
+      url += `&tokenSymbol=${encodeURIComponent(tokenSymbol)}`;
     }
     
     return url;

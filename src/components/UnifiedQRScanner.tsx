@@ -28,6 +28,7 @@ export const UnifiedQRScanner = () => {
     amount?: string;
     category?: string;
     tokenAddress?: string;
+    tokenSymbol?: string;
   } | null>(null);
   
   // Get account and chain information
@@ -76,7 +77,7 @@ export const UnifiedQRScanner = () => {
           toast({
             title: '✅ Pembayaran Berhasil!',
             description: paymentDetails?.type === 'business' 
-              ? `Pembayaran ke vault bisnis untuk kategori "${paymentDetails.category}" telah dikonfirmasi.`
+              ? `Pembayaran ${paymentDetails.tokenSymbol || (paymentDetails.tokenAddress ? 'IDRT' : 'ETH')} ke vault bisnis untuk kategori "${paymentDetails.category}" telah dikonfirmasi.`
               : `Pembayaran ke ${paymentDetails?.recipient.slice(0, 8)}... telah dikonfirmasi.`,
           });
         } else {
@@ -104,6 +105,7 @@ export const UnifiedQRScanner = () => {
         const amount = params.get('amount');
         const category = params.get('category');
         const tokenAddress = params.get('token');
+        const tokenSymbol = params.get('tokenSymbol') || (tokenAddress ? 'IDRT' : undefined);
         
         if (!recipientAddress) {
           throw new Error('QR code tidak berisi alamat penerima yang valid');
@@ -114,7 +116,8 @@ export const UnifiedQRScanner = () => {
           recipient: recipientAddress,
           amount: amount || undefined,
           category: category || 'Pembayaran QR',
-          tokenAddress: tokenAddress || undefined
+          tokenAddress: tokenAddress || undefined,
+          tokenSymbol: tokenSymbol
         });
         
         setProcessingStatus('idle');
@@ -237,7 +240,6 @@ export const UnifiedQRScanner = () => {
   const processBusinessPayment = async () => {
     if (!paymentDetails || !isConnected) return;
     
-    // For business payments, we use the depositNative function
     try {
       const vaultAddress = paymentDetails.recipient as `0x${string}`;
       const category = paymentDetails.category || 'Pembayaran QR';
@@ -253,30 +255,113 @@ export const UnifiedQRScanner = () => {
         throw new Error('Saldo tidak mencukupi untuk transaksi ini');
       }
       
-      console.log('Calling depositNative with:', {
-        vaultAddress,
-        category,
-        amount: amount.toString()
-      });
-      
-      // Call depositNative on the vault contract
-      const hash = await writeContractAsync({
-        address: vaultAddress,
-        abi: BUSINESS_ABI.BusinessVault,
-        functionName: 'depositNative',
-        args: [category],
-        value: amount,
-        account: address,
-        chain: chain
-      });
-      
-      setTxHash(hash);
+      // Check if this is a token payment (IDRT) or a native (ETH) payment
+      if (paymentDetails.tokenAddress) {
+        // Token payment (IDRT)
+        const tokenAddress = paymentDetails.tokenAddress as `0x${string}`;
+        
+        console.log('Processing token payment (IDRT):', {
+          vaultAddress,
+          tokenAddress,
+          category,
+          amount: amount.toString()
+        });
+        
+        // First approve the vault to spend tokens
+        setProcessingStatus('loading');
+        setProcessingMessage('Meminta izin penggunaan token IDRT...');
+        
+        const approvalSuccess = await approveToken(tokenAddress, vaultAddress, amount);
+        
+        if (!approvalSuccess) {
+          throw new Error('Gagal mendapatkan approval untuk token IDRT');
+        }
+        
+        // Then call depositToken on the vault contract
+        setProcessingStatus('loading');
+        setProcessingMessage('Mengirim token ke vault bisnis...');
+        
+        console.log('Calling depositToken with:', {
+          vaultAddress,
+          tokenAddress,
+          amount: amount.toString(),
+          category
+        });
+        
+        const hash = await writeContractAsync({
+          address: vaultAddress,
+          abi: BUSINESS_ABI.BusinessVault,
+          functionName: 'depositToken',
+          args: [tokenAddress, amount, category],
+          account: address,
+          chain: chain
+        });
+        
+        setTxHash(hash);
+      } else {
+        // Native payment (ETH)
+        console.log('Processing native payment (ETH):', {
+          vaultAddress,
+          category,
+          amount: amount.toString()
+        });
+        
+        // Call depositNative on the vault contract
+        const hash = await writeContractAsync({
+          address: vaultAddress,
+          abi: BUSINESS_ABI.BusinessVault,
+          functionName: 'depositNative',
+          args: [category],
+          value: amount,
+          account: address,
+          chain: chain
+        });
+        
+        setTxHash(hash);
+      }
     } catch (error) {
       console.error('Business transaction error:', error);
       throw error;
     }
   };
   
+  // Approve token sebelum melakukan depositToken
+  const approveToken = async (tokenAddress: `0x${string}`, spender: `0x${string}`, amount: bigint): Promise<boolean> => {
+    try {
+      console.log('🔄 Approving token transfer...');
+      console.log('Token:', tokenAddress);
+      console.log('Spender (BusinessVault):', spender);
+      console.log('Amount:', formatEther(amount), '(', amount.toString(), 'wei)');
+      
+      // Approve token spending
+      const hash = await writeContractAsync({
+        address: tokenAddress,
+        abi: BUSINESS_ABI.MockIDRT,
+        functionName: 'approve',
+        args: [spender, amount],
+        account: address,
+        chain: chain
+      });
+      
+      // Wait for approval transaction to complete
+      setProcessingStatus('loading');
+      setProcessingMessage('Menunggu konfirmasi approval token...');
+      
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+      
+      if (receipt.status === 'success') {
+        console.log('✅ Token approval successful:', hash);
+        return true;
+      } else {
+        console.error('❌ Token approval failed');
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ Error approving token:', error);
+      return false;
+    }
+  };
+
   const verifyTransaction = async (hash: `0x${string}`) => {
     try {
       if (!paymentDetails) return false;
@@ -336,7 +421,16 @@ export const UnifiedQRScanner = () => {
               <>
                 <div className="text-sm text-gray-500">Jumlah:</div>
                 <div className="text-sm font-bold text-green-600">
-                  {paymentDetails.amount} ETH
+                  {paymentDetails.amount} {paymentDetails.tokenSymbol || (paymentDetails.tokenAddress ? 'IDRT' : 'ETH')}
+                </div>
+              </>
+            )}
+            
+            {paymentDetails.tokenAddress && (
+              <>
+                <div className="text-sm text-gray-500">Token:</div>
+                <div className="text-sm font-mono break-all">
+                  {paymentDetails.tokenAddress.slice(0, 6)}...{paymentDetails.tokenAddress.slice(-4)}
                 </div>
               </>
             )}
@@ -355,7 +449,15 @@ export const UnifiedQRScanner = () => {
             <Alert className="mt-2 bg-blue-50 border-blue-200">
               <AlertCircle className="h-4 w-4 text-blue-600" />
               <AlertDescription className="text-blue-600">
-                Pembayaran akan menggunakan fungsi <code className="font-mono">depositNative</code> ke dalam vault bisnis dengan kategori "{paymentDetails.category}".
+                {paymentDetails.tokenAddress ? (
+                  <>
+                    Pembayaran akan menggunakan token {paymentDetails.tokenSymbol || 'IDRT'} melalui fungsi <code className="font-mono">depositToken</code> ke dalam vault bisnis dengan kategori "{paymentDetails.category}".
+                  </>
+                ) : (
+                  <>
+                    Pembayaran akan menggunakan fungsi <code className="font-mono">depositNative</code> ke dalam vault bisnis dengan kategori "{paymentDetails.category}".
+                  </>
+                )}
               </AlertDescription>
             </Alert>
           )}
