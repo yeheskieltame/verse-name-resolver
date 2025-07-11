@@ -37,7 +37,8 @@ const QRBusinessGenerator: React.FC<QRBusinessGeneratorProps> = ({
     amount: '',
     category: 'Pembayaran QR',
     tokenAddress: '',
-    currency: 'ETH'
+    currency: 'ETH',
+    tokenDecimals: 18
   });
   
   // State untuk QR code yang dihasilkan
@@ -51,7 +52,8 @@ const QRBusinessGenerator: React.FC<QRBusinessGeneratorProps> = ({
     {
       label: 'MockIDRT',
       value: BUSINESS_CONTRACTS.sepolia.contracts.MockIDRT,
-      currency: 'IDRT'
+      currency: 'IDRT',
+      decimals: 18
     }
   ];
   
@@ -60,10 +62,25 @@ const QRBusinessGenerator: React.FC<QRBusinessGeneratorProps> = ({
   
   // Handler untuk perubahan input form
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setFormData(prev => {
+      // If selecting a token, also update decimals
+      if (field === 'tokenAddress') {
+        const selectedToken = tokenOptions.find(token => token.value === value);
+        if (selectedToken) {
+          return {
+            ...prev,
+            [field]: value,
+            currency: selectedToken.currency,
+            tokenDecimals: selectedToken.decimals
+          };
+        }
+      }
+      
+      return {
+        ...prev,
+        [field]: value
+      };
+    });
   };
   
   // Utility: generate URL untuk QR code
@@ -101,7 +118,8 @@ const QRBusinessGenerator: React.FC<QRBusinessGeneratorProps> = ({
           formData.amount,
           formData.category,
           formData.currency === 'IDRT' ? formData.tokenAddress : undefined,
-          formData.currency === 'IDRT' ? formData.currency : undefined
+          formData.currency === 'IDRT' ? formData.currency : undefined,
+          formData.tokenDecimals
         );
         
         // Log untuk debug info QR code
@@ -111,6 +129,7 @@ const QRBusinessGenerator: React.FC<QRBusinessGeneratorProps> = ({
           category: formData.category,
           tokenAddress: formData.currency === 'IDRT' ? formData.tokenAddress : undefined,
           tokenSymbol: formData.currency === 'IDRT' ? formData.currency : undefined,
+          tokenDecimals: formData.tokenDecimals,
           fullUrl: url
         });
       }
@@ -187,7 +206,8 @@ const QRBusinessGenerator: React.FC<QRBusinessGeneratorProps> = ({
       amount: '',
       category: 'Pembayaran QR',
       tokenAddress: '',
-      currency: 'ETH'
+      currency: 'ETH',
+      tokenDecimals: 18
     });
     setQrCodeImage('');
     setQrCodeUrl('');
@@ -276,6 +296,23 @@ const QRBusinessGenerator: React.FC<QRBusinessGeneratorProps> = ({
                     ))}
                   </SelectContent>
                 </Select>
+                
+                {formData.tokenAddress && (
+                  <Alert className="bg-blue-50 mt-2">
+                    <AlertCircle className="h-4 w-4 text-blue-700" />
+                    <AlertDescription className="text-xs text-blue-800">
+                      QR kode untuk token IDRT akan menggunakan format <code className="bg-blue-100 px-1 rounded">ethereum:</code> protocol (EIP-681). 
+                      Format ini lebih umum digunakan oleh dompet kripto dan mendukung parameter jumlah pembayaran secara presisi.
+                      <br/><br/>
+                      <span className="font-medium">Token Info:</span><br/>
+                      <span className="inline-block mt-1">
+                        • Symbol: {formData.currency}<br/>
+                        • Decimals: {formData.tokenDecimals}<br/>
+                        • Address: <span className="font-mono">{formData.tokenAddress.slice(0, 8)}...{formData.tokenAddress.slice(-6)}</span>
+                      </span>
+                    </AlertDescription>
+                  </Alert>
+                )}
               </div>
             )}
             
@@ -347,13 +384,21 @@ const QRBusinessGenerator: React.FC<QRBusinessGeneratorProps> = ({
                     <span className="text-sm text-gray-600">Jumlah:</span>
                     <span className="font-bold text-lg text-green-600">
                       {formData.amount} {formData.currency}
+                      {formData.currency === 'IDRT' && <span className="block text-xs text-gray-600">(Rp {formData.amount})</span>}
                     </span>
                   </div>
                   
                   {formData.currency === 'IDRT' && (
                     <div className="flex justify-between items-center text-xs bg-gray-50 p-2 rounded">
                       <span className="text-gray-600">Token:</span>
-                      <span className="font-mono">{formData.tokenAddress.slice(0, 6)}...{formData.tokenAddress.slice(-4)}</span>
+                      <div className="text-right">
+                        <span className="font-medium block">
+                          {tokenOptions.find(t => t.value === formData.tokenAddress)?.label || 'Unknown'}
+                        </span>
+                        <span className="font-mono">
+                          {formData.tokenAddress.slice(0, 6)}...{formData.tokenAddress.slice(-4)}
+                        </span>
+                      </div>
                     </div>
                   )}
                   <div className="flex justify-between items-center">
@@ -418,6 +463,19 @@ const QRBusinessGenerator: React.FC<QRBusinessGeneratorProps> = ({
                       readOnly
                       className="font-mono text-xs"
                     />
+                    
+                    {formData.currency === 'IDRT' && qrCodeUrl.startsWith('ethereum:') && (
+                      <div className="text-xs bg-blue-50 p-2 rounded my-2">
+                        <p className="font-medium text-blue-800">QR Code Format: EIP-681 ethereum: protocol</p>
+                        <p className="text-gray-600 mt-1">
+                          Standar format ethereum: protocol digunakan untuk memudahkan pembayaran token ERC20.
+                          Format ini didukung oleh banyak dompet kripto seperti MetaMask dan TrustWallet.
+                        </p>
+                        <p className="text-gray-700 mt-2 font-mono bg-blue-100 p-1 rounded text-[10px] break-all">
+                          <span className="text-blue-700">ethereum:</span>{formData.tokenAddress}<span className="text-blue-700">/transfer?</span>address={vaultAddress}&uint256={parseUnits(formData.amount, formData.tokenDecimals).toString()}&chainId=11155111
+                        </p>
+                      </div>
+                    )}
                     <Button 
                       variant="outline" 
                       onClick={copyToClipboard}

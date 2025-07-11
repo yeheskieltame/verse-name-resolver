@@ -22,9 +22,10 @@ export const UnifiedQRScanner = () => {
   const publicClient = usePublicClient();
   const { data: userBalance } = useBalance({ address: userAddress });
   
-  // Scanner state
+  // State untuk QR code yang dipindai
   const [isScanning, setIsScanning] = useState(false);
   const [scannedUrl, setScannedUrl] = useState<string>('');
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>('');  // To store the full QR URL
   
   // Payment processing state
   const [processingStatus, setProcessingStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -64,6 +65,7 @@ export const UnifiedQRScanner = () => {
   const handleQRDetection = (result: string) => {
     setIsScanning(false);
     setScannedUrl(result);
+    setQrCodeUrl(result);  // Store the full QR URL
     parseQRData(result);
   };
   
@@ -102,21 +104,60 @@ export const UnifiedQRScanner = () => {
     setProcessingMessage('Menganalisis QR code...');
     
     try {
-      // Extra direct check for IDRT in QR URL 
-      if (url.includes('IDRT') || url.includes('idrt') || url.includes('token=0x')) {
-        console.log('Detected potential IDRT token reference in QR code');
+      // Check for various token formats:
+      // 1. Contains IDRT/idrt string
+      // 2. Contains token= parameter
+      // 3. ethereum: protocol with /transfer path (ERC20 transfer)
+      if (url.includes('IDRT') || url.includes('idrt') || url.includes('token=0x') || 
+          (url.startsWith('ethereum:') && url.includes('/transfer'))) {
+        console.log('Detected potential token reference in QR code');
+        
+        // Handle ethereum: protocol with /transfer path specifically
+        if (url.startsWith('ethereum:') && url.includes('/transfer')) {
+          const urlParts = url.replace('ethereum:', '').split('/transfer');
+          const tokenAddress = urlParts[0] as `0x${string}`;
+          const params = new URLSearchParams(urlParts[1]?.split('?')[1] || '');
+          
+          const recipient = params.get('address') as `0x${string}`;
+          const tokenAmount = params.get('uint256');
+          
+          if (recipient && tokenAmount) {
+            console.log('Parsed ERC20 transfer data:', {
+              tokenAddress,
+              recipient,
+              tokenAmount,
+            });
+            
+            // For ERC20 transfers, the amount is usually provided in the smallest unit (wei)
+            // Create a business payment with the token address and amount
+            setPaymentDetails({
+              type: 'business',
+              recipient: recipient,
+              amount: tokenAmount,
+              category: 'Pembayaran Token IDRT',
+              tokenAddress: tokenAddress,
+              tokenSymbol: 'IDRT'
+            });
+            
+            setProcessingStatus('idle');
+            setProcessingMessage(`Siap melakukan pembayaran IDRT ke ${recipient.slice(0, 8)}...`);
+            return;
+          }
+        }
         
         // Try to extract amount directly from the QR string
         const amountMatch = url.match(/amount=(\d+\.?\d*)/i);
         const valueMatch = url.match(/value=(\d+\.?\d*)/i);
+        const uint256Match = url.match(/uint256=(\d+)/i);
         const numberMatch = url.match(/(\d{5,})/); // Look for numbers with at least 5 digits (likely amounts)
         
-        const extractedAmount = amountMatch?.[1] || valueMatch?.[1] || (numberMatch?.[1] && !url.includes(numberMatch[1] + '.')) ? numberMatch?.[1] : null;
+        const extractedAmount = amountMatch?.[1] || valueMatch?.[1] || uint256Match?.[1] || 
+          (numberMatch?.[1] && !url.includes(numberMatch[1] + '.')) ? numberMatch?.[1] : null;
         
         if (extractedAmount) {
-          console.log('Extracted potential IDRT amount from QR:', extractedAmount);
+          console.log('Extracted potential token amount from QR:', extractedAmount);
           
-          // Create a business payment with IDRT token if we can find a recipient address
+          // Create a business payment with token if we can find a recipient address
           const addressMatch = url.match(/(?:address|recipient|to)=([0-9a-fx]+)/i);
           const recipient = addressMatch?.[1];
           
@@ -125,7 +166,10 @@ export const UnifiedQRScanner = () => {
             
             // Try to get token address
             const tokenAddressMatch = url.match(/(?:token|contract)=([0-9a-fx]+)/i);
-            const tokenAddress = tokenAddressMatch?.[1] || getNetworkToken();
+            // If we have ethereum:0xTOKEN_ADDRESS format, extract that
+            const ethereumMatch = url.match(/ethereum:([0-9a-fx]+)/i);
+            
+            const tokenAddress = tokenAddressMatch?.[1] || ethereumMatch?.[1] || getNetworkToken();
             
             if (tokenAddress) {
               const categoryMatch = url.match(/(?:category|desc)=([^&# ]+)/i);
@@ -244,40 +288,86 @@ export const UnifiedQRScanner = () => {
         }
       } else if (url.startsWith('ethereum:')) {
         // Parse as Ethereum URI (EIP-681) for personal payment
-        const addressPart = url.replace('ethereum:', '').split('?')[0];
-        const params = new URLSearchParams(url.split('?')[1] || '');
+        // Format could be: ethereum:0x123... or ethereum:0x123.../transfer?address=0x456...&uint256=123...
         
-        const recipient = addressPart;
-        const amount = params.get('value') 
-          ? formatEther(BigInt(params.get('value') || '0'))
-          : undefined;
+        // Check if it's a token transfer format
+        const isTokenTransfer = url.includes('/transfer');
         
-        // Check if recipient is a name
-        if (recipient.endsWith('.sw')) {
-          const resolvedAddress = await crossChainNameService.resolveNameToAddress(recipient);
+        if (isTokenTransfer) {
+          // Handle ERC20 token transfer format
+          // Format: ethereum:0xTokenAddress/transfer?address=0xRecipient&uint256=amount&chainId=123
+          const urlParts = url.replace('ethereum:', '').split('/transfer');
+          const tokenAddress = urlParts[0] as `0x${string}`;
+          const params = new URLSearchParams(urlParts[1]?.split('?')[1] || '');
           
-          if (resolvedAddress) {
-            setPaymentDetails({
-              type: 'personal',
-              recipient: resolvedAddress,
-              amount: amount
-            });
-            
-            setProcessingStatus('idle');
-            setProcessingMessage(`Siap melakukan pembayaran ke ${recipient}`);
-          } else {
-            throw new Error(`Nama ${recipient} tidak dapat diresolve`);
-          }
-        } else {
-          // Direct address
-          setPaymentDetails({
-            type: 'personal',
+          const recipient = params.get('address') as `0x${string}`;
+          const tokenAmount = params.get('uint256');
+          const chainIdParam = params.get('chainId');
+          
+          console.log('Parsed ERC20 Transfer QR:', {
+            tokenAddress,
             recipient,
-            amount
+            tokenAmount,
+            chainIdParam
+          });
+          
+          if (!recipient) {
+            throw new Error('QR code tidak berisi alamat penerima yang valid');
+          }
+          
+          if (!tokenAmount) {
+            throw new Error('QR code tidak berisi jumlah token yang valid');
+          }
+          
+          // For token transfers, set it up as a business payment
+          setPaymentDetails({
+            type: 'business',
+            recipient: recipient,
+            amount: tokenAmount,
+            category: 'Pembayaran Token QR',
+            tokenAddress: tokenAddress,
+            tokenSymbol: 'IDRT'
           });
           
           setProcessingStatus('idle');
-          setProcessingMessage(`Siap melakukan pembayaran ke ${recipient.slice(0, 8)}...`);
+          setProcessingMessage(`Siap melakukan pembayaran IDRT ke ${recipient.slice(0, 8)}...`);
+        } else {
+          // Standard ethereum: URI format
+          const addressPart = url.replace('ethereum:', '').split('?')[0];
+          const params = new URLSearchParams(url.split('?')[1] || '');
+          
+          const recipient = addressPart;
+          const amount = params.get('value') 
+            ? formatEther(BigInt(params.get('value') || '0'))
+            : undefined;
+          
+          // Check if recipient is a name
+          if (recipient.endsWith('.sw')) {
+            const resolvedAddress = await crossChainNameService.resolveNameToAddress(recipient);
+            
+            if (resolvedAddress) {
+              setPaymentDetails({
+                type: 'personal',
+                recipient: resolvedAddress,
+                amount: amount
+              });
+              
+              setProcessingStatus('idle');
+              setProcessingMessage(`Siap melakukan pembayaran ke ${recipient}`);
+            } else {
+              throw new Error(`Nama ${recipient} tidak dapat diresolve`);
+            }
+          } else {
+            // Direct address
+            setPaymentDetails({
+              type: 'personal',
+              recipient,
+              amount
+            });
+            
+            setProcessingStatus('idle');
+            setProcessingMessage(`Siap melakukan pembayaran ke ${recipient.slice(0, 8)}...`);
+          }
         }
       } else if (url.startsWith('0x')) {
         // Direct address (no scheme)
@@ -367,10 +457,18 @@ export const UnifiedQRScanner = () => {
       let amount: bigint;
       if (paymentDetails.amount) {
         try {
-          // Clean up the amount string (remove any non-numeric/decimal characters)
-          const cleanAmount = paymentDetails.amount.replace(/[^\d.]/g, '');
-          amount = parseEther(cleanAmount);
-          console.log(`Amount parsed: ${cleanAmount} -> ${amount.toString()}`);
+          // Check if the amount string contains a "uint256=" parameter value (from ERC20 transfer)
+          // These values are already in wei/smallest unit and shouldn't be converted with parseEther
+          if (paymentDetails.amount.length > 18 && !paymentDetails.amount.includes('.')) {
+            // This is likely already a wei value from uint256 parameter
+            amount = BigInt(paymentDetails.amount);
+            console.log(`Amount from uint256 param: ${paymentDetails.amount} -> ${amount.toString()}`);
+          } else {
+            // Clean up the amount string (remove any non-numeric/decimal characters)
+            const cleanAmount = paymentDetails.amount.replace(/[^\d.]/g, '');
+            amount = parseEther(cleanAmount);
+            console.log(`Amount parsed from decimal: ${cleanAmount} -> ${amount.toString()}`);
+          }
         } catch (error) {
           console.error('Error parsing amount:', error);
           throw new Error(`Gagal memproses jumlah pembayaran: ${paymentDetails.amount}`);
@@ -384,8 +482,8 @@ export const UnifiedQRScanner = () => {
         throw new Error('Jumlah pembayaran harus lebih dari 0');
       }
       
-      // Check balance
-      if (userBalance && amount > userBalance.value) {
+      // Check balance for native currency payments
+      if (!paymentDetails.tokenAddress && userBalance && amount > userBalance.value) {
         throw new Error('Saldo tidak mencukupi untuk transaksi ini');
       }
       
@@ -409,13 +507,17 @@ export const UnifiedQRScanner = () => {
           throw new Error(`Jaringan ${chain?.name || chainId} tidak didukung untuk transaksi bisnis. Silakan beralih ke Sepolia atau jaringan lain yang didukung.`);
         }
         
+        // Special handling for ERC20 transfer protocol (ethereum:)
+        const isEthereumProtocol = qrCodeUrl && qrCodeUrl.startsWith('ethereum:');
+        
         console.log('Processing token payment (IDRT):', {
           network: currentNetwork?.name || chainId.toString(),
           chainId,
           vaultAddress,
           tokenAddress,
           category,
-          amount: amount.toString()
+          amount: amount.toString(),
+          isEthereumProtocol
         });
         
         // First approve the vault to spend tokens
@@ -549,6 +651,7 @@ export const UnifiedQRScanner = () => {
   // Reset the scanner and state
   const resetScanner = () => {
     setScannedUrl('');
+    setQrCodeUrl('');
     setPaymentDetails(null);
     setProcessingStatus('idle');
     setProcessingMessage('');
@@ -628,15 +731,17 @@ export const UnifiedQRScanner = () => {
             <div className="text-sm font-medium">
               {currentNetwork?.name || `Chain ID: ${chainId}`}
             </div>
-          </div>
-          
-          {type === 'business' && (
+          </div>            {type === 'business' && (
             <Alert className="mt-2 bg-blue-50 border-blue-200">
               <AlertCircle className="h-4 w-4 text-blue-600" />
               <AlertDescription className="text-blue-600">
                 {tokenAddress ? (
                   <>
                     Pembayaran akan menggunakan token {tokenSymbol || 'IDRT'} melalui fungsi <code className="font-mono">depositToken</code> ke dalam vault bisnis dengan kategori "{category}".
+                    <div className="text-xs mt-1 text-gray-500">
+                      Token: {tokenAddress.slice(0, 6)}...{tokenAddress.slice(-4)} | 
+                      Amount: {formatAmountForDisplay(amount, true)} {tokenSymbol || 'IDRT'}
+                    </div>
                   </>
                 ) : (
                   <>
@@ -709,6 +814,23 @@ export const UnifiedQRScanner = () => {
     
     // For IDRT or other tokens, we might need to handle different decimal formats
     try {
+      // Log original amount for debugging
+      console.log('Formatting amount:', amount, 'isToken:', isToken);
+      
+      // Special handling for large uint256 values (already in wei)
+      if (amount.length > 18 && !amount.includes('.') && isToken) {
+        // This is likely a uint256 parameter value already in smallest units
+        // Convert to a decimal for display by dividing by 10^18 (standard ERC20 decimals)
+        const bigAmount = BigInt(amount);
+        const displayValue = Number(bigAmount) / 10**18;
+        console.log('Formatted uint256 amount:', amount, '->', displayValue);
+        
+        return displayValue.toLocaleString('id-ID', {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 6
+        });
+      }
+      
       // Remove any non-numeric characters except decimal point
       const cleanAmount = amount.replace(/[^\d.]/g, '');
       
@@ -759,6 +881,15 @@ export const UnifiedQRScanner = () => {
             <Button onClick={() => setIsScanning(true)}>
               Mulai Scan QR
             </Button>
+            <div className="text-xs text-gray-500 mt-2">
+              Mendukung berbagai format QR code pembayaran:
+              <ul className="list-disc pl-4 mt-1">
+                <li>QR SmartVerse Bisnis dengan format /pay?address=0x...</li>
+                <li>QR Ethereum dengan format ethereum:0x...</li>
+                <li>QR Token ERC20 dengan format ethereum:0xToken/transfer?address=0xRecipient&uint256=amount</li>
+                <li>Alamat wallet langsung 0x...</li>
+              </ul>
+            </div>
           </div>
         ) : isScanning ? (
           <div className="relative">

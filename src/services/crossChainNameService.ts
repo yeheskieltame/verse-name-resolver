@@ -729,9 +729,34 @@ export class CrossChainNameService implements CrossChainNameResolver {
     amount?: string, 
     category: string = 'Pembayaran QR',
     tokenAddress?: string,
-    tokenSymbol: string = 'IDRT'
+    tokenSymbol: string = 'IDRT',
+    tokenDecimals: number = 18
   ): string {
-    // Create URL to DApp with all parameters needed
+    // Check if we're generating a token payment QR (IDRT)
+    if (tokenAddress && amount) {
+      // For token payments, provide two formats:
+      // 1. SmartVerse Pay format
+      // 2. ERC20 Transfer format (ethereum: protocol)
+      
+      // For IDRT tokens, generate ethereum: protocol format which is more widely supported
+      // Format: ethereum:0xTokenAddress/transfer?address=0xRecipient&uint256=value&chainId=11155111
+      
+      // Convert amount to token units (use specified decimals, default 18 for IDRT)
+      const tokenAmount = parseUnits(amount, tokenDecimals).toString();
+      
+      // Create URL with ethereum: protocol
+      let url = `ethereum:${tokenAddress}/transfer?address=${vaultAddress}&uint256=${tokenAmount}&chainId=11155111`;
+      
+      // Add category as data parameter
+      if (category) {
+        url += `&data=${encodeURIComponent(category)}`;
+      }
+      
+      console.log('Generated ethereum: protocol QR URL:', url);
+      return url;
+    }
+    
+    // For native currency or static QR codes, use the standard SmartVerse Pay format
     let url = `https://smartverse-id.vercel.app/pay?address=${vaultAddress}`;
     
     // Add optional parameters
