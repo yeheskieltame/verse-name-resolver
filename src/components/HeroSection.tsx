@@ -3,7 +3,7 @@ import { Shield, Globe, Zap, Sparkles, ArrowRight } from 'lucide-react';
 
 export const HeroSection = () => {
   return (
-    <div className="text-center max-w-6xl mx-auto space-y-8 sm:space-y-12 lg:space-y-16">
+    <div className="text-center max-w-6xl mx-auto space-y-8 sm:space-y-12 lg:space-y-16 tour-hero-section">
       {/* Logo Hero */}
       <div className="flex justify-center animate-fade-in">
         <img 

@@ -41,8 +41,6 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ vaultAddress }) => {
   const loadPaymentData = async () => {
     setIsLoading(true);
     try {
-      console.log('Loading payment history for vault:', vaultAddress);
-      
       // Cleanup expired requests first
       BusinessDataManager.cleanupExpiredRequests();
       
@@ -50,11 +48,8 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ vaultAddress }) => {
       const allPayments = Object.values(BusinessDataManager.getAllPaymentRequests())
         .filter(p => p.businessVaultAddress === vaultAddress);
       
-      console.log(`Found ${allPayments.length} QR payment requests for vault ${vaultAddress}`);
-      
       // Load all blockchain transactions
       const blockchainTransactions = await businessService.getBusinessTransactions(vaultAddress as `0x${string}`);
-      console.log(`Found ${blockchainTransactions.length} blockchain transactions for vault ${vaultAddress}`);
       
       // Store blockchain transactions for display
       setBlockchainTxs(blockchainTransactions);
@@ -63,7 +58,6 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ vaultAddress }) => {
       const normalizedPayments = allPayments.map(payment => {
         // Ensure payment has valid status
         if (!payment.status || !['pending', 'processing', 'success', 'failed'].includes(payment.status)) {
-          console.warn(`Payment ${payment.id} has invalid status: ${payment.status}, setting to pending`);
           payment.status = 'pending';
         }
         
@@ -81,7 +75,6 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ vaultAddress }) => {
         );
         
         if (matchingTx && payment.status !== 'success') {
-          console.log(`Found matching blockchain tx for payment ${payment.id}, updating status to success`);
           payment.status = 'success';
           BusinessDataManager.updatePaymentRequest(payment.id, { status: 'success', transactionRecorded: true });
         }
@@ -99,7 +92,6 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ vaultAddress }) => {
           return isNaN(amount) ? sum : sum + amount;
         }, 0);
       } catch (error) {
-        console.error('Error calculating total amount:', error);
         totalAmount = 0;
       }
       
@@ -116,18 +108,7 @@ const PaymentHistory: React.FC<PaymentHistoryProps> = ({ vaultAddress }) => {
       // Sort by created date, newest first
       const sortedPayments = [...normalizedPayments].sort((a, b) => b.createdAt - a.createdAt);
       setPayments(sortedPayments.slice(0, 10)); // recent 10 payments
-      
-      console.log('Payment history loaded successfully');
     } catch (error) {
-      console.error('Error loading payment data:', error);
-      if (error instanceof Error) {
-        console.error('Error details:', {
-          message: error.message,
-          name: error.name,
-          stack: error.stack
-        });
-      }
-      
       // Set empty state to prevent UI from breaking
       setPayments([]);
       setBlockchainTxs([]);

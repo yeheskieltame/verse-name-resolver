@@ -27,12 +27,6 @@ import { SmartVerseBusinessService } from '../services/smartVerseBusiness';
 import FinancialReport from './FinancialReport';
 import BusinessPayment from './BusinessPayment';
 
-// Debug ABI functions
-console.log('🔍 ABI Debug - Available functions:', BusinessVault_ABI.map(item => item.type === 'function' ? item.name : null).filter(Boolean));
-
-// Import debug
-import '../debug/abiDebug';
-
 interface BusinessDashboardProps {
   onCreateNewBusiness?: () => void;
   onViewVault?: (vaultAddress: string, businessName: string, chainId: number) => void;
@@ -78,6 +72,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
   const [monthlyIncome, setMonthlyIncome] = useState('0');
   const [monthlyExpense, setMonthlyExpense] = useState('0');
   const [loading, setLoading] = useState(true);
+  const [vaultAddress, setVaultAddress] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [businessService] = useState(new SmartVerseBusinessService());
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -85,15 +80,35 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Helper functions for formatting
+  const getChainName = (chainId: number): string => {
+    switch (chainId) {
+      case 11155111: return 'Sepolia';
+      case 13000: return 'Taranium';
+      case 1: return 'Ethereum';
+      default: return 'Unknown';
+    }
+  };
+
+  const formatDate = (timestamp: number): string => {
+    const date = new Date(timestamp * 1000);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+    if (hours < 1) return 'Baru saja';
+    if (hours < 24) return `${hours} jam yang lalu`;
+    if (days < 30) return `${days} hari yang lalu`;
+    return date.toLocaleDateString();
+  };
+
   // Load real data from blockchain
   useEffect(() => {
     try {
       if (isConnected && address) {
-        console.log('useEffect triggered - loading business data');
-        console.log('isConnected:', isConnected, 'address:', address, 'chainId:', chainId);
         loadBusinessData();
       } else {
-        console.log('useEffect conditions not met:', { isConnected, address, chainId });
         // Ensure loading is set to false even if we don't proceed
         setLoading(false);
       }
@@ -107,26 +122,33 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
     try {
       setLoading(true);
       setRefreshing(true);
-      console.log('Loading business data for address:', address);
-      console.log('Current chain ID:', chainId);
-      console.log('Expected chain ID for business (Sepolia):', 11155111);
+      
       if (chainId !== 11155111) {
-        console.warn('User not connected to Sepolia. Business features require Sepolia network.');
         // Tetap lanjut, hanya tampilkan warning di UI
       }
-      // Get user's business vault
+
+      if (!address) {
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
+      // Get user's business vault address first
+      const addrTyped = address as `0x${string}`;
       try {
-        const vaultAddress = await businessService.getUserVault(address as `0x${string}`);
-        console.log('Vault address found:', vaultAddress);
-        if (vaultAddress && vaultAddress !== '0x0000000000000000000000000000000000000000') {
+        const userVaultAddress = await businessService.getUserVault(addrTyped);
+        setVaultAddress(userVaultAddress);
+        
+        // Now process the vault data if we have a valid vault address
+        if (userVaultAddress && userVaultAddress !== '0x0000000000000000000000000000000000000000') {
           // Pastikan vaultAddress valid dan bukan address kosong
-          const vaultAddrTyped = vaultAddress as `0x${string}`;
-          let summary, transactions;
+          const vaultAddrTyped = userVaultAddress as `0x${string}`;
+          
+          // Get business summary (balance, income, expense)
+          let summary;
           try {
             summary = await businessService.getBusinessSummary(vaultAddrTyped);
-            console.log('Business summary loaded:', summary);
           } catch (summaryError) {
-            console.error('Error loading business summary:', summaryError);
             summary = {
               balance: '0',
               totalIncome: '0',
@@ -134,25 +156,26 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
               transactionCount: 0
             };
           }
+          
+          // Get transactions
+          let transactions;
           try {
             transactions = await businessService.getBusinessTransactions(vaultAddrTyped);
-            console.log('Business transactions loaded:', transactions.length, 'transactions');
-            console.log('Sample transaction:', transactions.length > 0 ? transactions[0] : 'No transactions');
           } catch (txError) {
-            console.error('Error loading business transactions:', txError);
             transactions = [];
           }
-          // Get business name dari service/localStorage, jika tidak ada jangan fallback ke nama dummy
+          
+          // Get business name
           let businessName = '';
           try {
             businessName = await businessService.getBusinessName(vaultAddrTyped);
-            console.log('Business name:', businessName);
           } catch (nameError) {
-            console.error('Error loading business name:', nameError);
+            // Ignore name errors
           }
-          // Tampilkan vault meskipun nama bisnis kosong
+          
+          // Create business vault data
           const vaultData = [{
-            address: vaultAddress,
+            address: userVaultAddress,
             name: businessName, // tetap tampilkan meskipun kosong
             owner: address,
             balance: summary.balance,
@@ -163,6 +186,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
             lastActivity: transactions.length > 0 ? formatDate(transactions[0].timestamp) : 'Tidak ada aktivitas',
             category: 'general'
           }];
+          
           setBusinessVaults(vaultData);
           
           // Format all transactions
@@ -195,26 +219,21 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
           // Set only 5 most recent transactions for the overview tab
           setRecentTransactions(formattedTransactions.slice(0, 5));
           
-          // Gunakan tokenBalance sebagai total balance jika tersedia
+          // Set financial metrics
           if (summary.tokenBalance && parseFloat(summary.tokenBalance) > 0) {
             setTotalBalance(summary.tokenBalance);
-            console.log('Using token balance as total balance:', summary.tokenBalance);
           } else {
             setTotalBalance(summary.balance);
-            console.log('Using ETH balance as total balance:', summary.balance);
           }
           
-          // Gunakan tokenIncome dan tokenExpense jika tersedia
           if (summary.tokenIncome && parseFloat(summary.tokenIncome) > 0) {
             setMonthlyIncome(summary.tokenIncome);
-            console.log('Using token income:', summary.tokenIncome);
           } else {
             setMonthlyIncome(summary.totalIncome);
           }
           
           if (summary.tokenExpense && parseFloat(summary.tokenExpense) > 0) {
             setMonthlyExpense(summary.tokenExpense);
-            console.log('Using token expense:', summary.tokenExpense);
           } else {
             setMonthlyExpense(summary.totalExpenses);
           }
@@ -227,14 +246,14 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
           setMonthlyExpense('0');
         }
       } catch (vaultError) {
-        console.error('Error getting user vault:', vaultError);
+        // Error getting vault address
         setBusinessVaults([]);
         setTotalBalance('0');
         setMonthlyIncome('0');
         setMonthlyExpense('0');
       }
     } catch (error) {
-      console.error('Error loading business data:', error);
+      // General error
       setBusinessVaults([]);
       setRecentTransactions([]);
       setTotalBalance('0');
@@ -243,29 +262,8 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
       setError('Terjadi kesalahan saat memuat data bisnis. Silakan refresh halaman atau coba lagi nanti.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  };
-
-  const getChainName = (chainId: number): string => {
-    switch (chainId) {
-      case 11155111: return 'Sepolia';
-      case 13000: return 'Taranium';
-      case 1: return 'Ethereum';
-      default: return 'Unknown';
-    }
-  };
-
-  const formatDate = (timestamp: number): string => {
-    const date = new Date(timestamp * 1000);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-    if (hours < 1) return 'Baru saja';
-    if (hours < 24) return `${hours} jam yang lalu`;
-    if (days < 30) return `${days} hari yang lalu`;
-    return date.toLocaleDateString();
   };
 
   const getTransactionIcon = (type: string) => {
@@ -342,7 +340,6 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
   }
 
   if (loading) {
-    console.log('Rendering loading state');
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <Card className="w-full max-w-md">
@@ -377,18 +374,11 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
     );
   }
 
-  console.log('Rendering main dashboard with:', {
-    businessVaults: businessVaults.length,
-    recentTransactions: recentTransactions.length,
-    totalBalance,
-    loading
-  });
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-8 tour-dashboard-header">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -412,7 +402,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
                 <Download className="h-4 w-4 mr-2" />
                 Ekspor Data
               </Button>
-              <Button size="sm" onClick={onCreateNewBusiness}>
+              <Button size="sm" onClick={onCreateNewBusiness} className="tour-create-business">
                 <PlusCircle className="h-4 w-4 mr-2" />
                 Buat Bisnis Baru
               </Button>
@@ -421,7 +411,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 tour-business-summary">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -491,9 +481,9 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Ringkasan</TabsTrigger>
-            <TabsTrigger value="vaults">Brankas Bisnis</TabsTrigger>
-            <TabsTrigger value="transactions">Transaksi</TabsTrigger>
-            <TabsTrigger value="reports">Laporan</TabsTrigger>
+            <TabsTrigger value="vaults" className="tour-vaults">Brankas Bisnis</TabsTrigger>
+            <TabsTrigger value="transactions" className="tour-transactions">Transaksi</TabsTrigger>
+            <TabsTrigger value="reports" className="tour-reports">Laporan</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -522,7 +512,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
                   ) : (
                     <div className="space-y-4">
                       {businessVaults.map((vault) => (
-                        <div key={vault.address} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div key={vault.address} className="flex items-center justify-between p-4 border rounded-lg tour-business-card">
                           <div className="flex items-center space-x-3">
                             <div className="p-2 bg-blue-100 rounded-full">
                               <Building2 className="h-4 w-4 text-blue-600" />

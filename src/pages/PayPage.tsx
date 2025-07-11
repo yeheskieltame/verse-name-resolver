@@ -10,7 +10,7 @@ export const PayPage = () => {
     <div className="min-h-screen bg-white">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
         {/* Page Header */}
-        <div className="text-center space-y-6 mb-8 sm:mb-12">
+        <div className="text-center space-y-6 mb-8 sm:mb-12 tour-pay-intro">
           <div className="flex justify-center mb-6">
             <img 
               src="/smartverse.svg" 
@@ -63,7 +63,9 @@ export const PayPage = () => {
                   Send tokens to any .sw name across supported networks
                 </p>
               </div>
-              <CrossChainSendTokens />
+              <div className="tour-send-tokens">
+                <CrossChainSendTokens />
+              </div>
             </div>
           </TabsContent>
 
@@ -75,7 +77,9 @@ export const PayPage = () => {
                   Generate payment QR codes or scan to pay instantly
                 </p>
               </div>
-              <SmartVersePay />
+              <div className="tour-scan-qr">
+                <SmartVersePay />
+              </div>
             </div>
           </TabsContent>
         </Tabs>

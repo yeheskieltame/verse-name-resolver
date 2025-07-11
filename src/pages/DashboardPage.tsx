@@ -8,7 +8,7 @@ export const DashboardPage = () => {
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
       {/* Page Header */}
-      <div className="text-center space-y-6 mb-8 sm:mb-12">
+      <div className="text-center space-y-6 mb-8 sm:mb-12 tour-dashboard-intro">
         <div className="flex justify-center mb-6">
           <img 
             src="/smartverse.svg" 
@@ -61,7 +61,9 @@ export const DashboardPage = () => {
                 Secure your unique .sw identity on the blockchain
               </p>
             </div>
-            <CrossChainNameRegistration />
+            <div className="tour-name-registration">
+              <CrossChainNameRegistration />
+            </div>
           </div>
         </TabsContent>
 
@@ -73,7 +75,9 @@ export const DashboardPage = () => {
                 View expiration dates, renew subscriptions, and manage your portfolio
               </p>
             </div>
-            <NameExpirationStatus />
+            <div className="tour-name-directory">
+              <NameExpirationStatus />
+            </div>
           </div>
         </TabsContent>
       </Tabs>

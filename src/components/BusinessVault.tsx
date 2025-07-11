@@ -125,7 +125,6 @@ const BusinessVault: React.FC<BusinessVaultProps> = (props) => {
 
       setTransactions(formattedTransactions);
     } catch (err) {
-      console.error('Error loading vault data:', err);
       setError('Gagal memuat data vault');
     } finally {
       setLoading(false);
@@ -287,7 +286,6 @@ const BusinessVault: React.FC<BusinessVaultProps> = (props) => {
         // Tambahkan callback untuk mencatat transaksi
         onPaymentSuccess: async (paymentId, amount) => {
           try {
-            console.log(`Recording QR payment ${paymentId} as business transaction`);
             // Record to blockchain as business transaction
             const tokenAddress = getContractAddress(chainId, 'MockIDRT') as `0x${string}`;
             const txHash = await businessService.depositTokenToVault(
@@ -297,20 +295,17 @@ const BusinessVault: React.FC<BusinessVaultProps> = (props) => {
               'Sales' // Default category untuk QR payment
             );
             
-            console.log(`Payment transaction recorded: ${txHash}`);
-            
             // Refresh data setelah pembayaran berhasil direkam
             await loadVaultData();
             
             return Promise.resolve();
           } catch (error) {
-            console.error("Failed to record payment as business transaction:", error);
             return Promise.reject(error);
           }
         }
       });
     } else {
-      console.log("Payment handler not provided");
+      // console.log("Payment handler not provided");
       alert("QR Payment feature is coming soon!");
     }
   };
@@ -660,7 +655,7 @@ const BusinessVault: React.FC<BusinessVaultProps> = (props) => {
               <h2 className="text-2xl font-bold">Pembayaran QR</h2>
               <p className="text-gray-500">Kelola dan pantau pembayaran QR dari pelanggan</p>
             </div>
-            <Button onClick={() => handleCreatePayment()}>
+            <Button onClick={() => handleCreatePayment()} className="tour-qr-payment">
               <QrCode className="mr-2 h-4 w-4" />
               Buat QR Baru
             </Button>

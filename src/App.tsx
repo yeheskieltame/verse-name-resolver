@@ -13,6 +13,7 @@ import { PayPage } from './pages/PayPage';
 import BusinessPage from './pages/BusinessPage';
 import PaymentProcessor from './components/PaymentProcessor';
 import NotFound from "./pages/NotFound";
+import MainAppTour from './components/MainAppTour';
 
 import '@rainbow-me/rainbowkit/styles.css';
 
@@ -26,16 +27,18 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <Layout>
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/pay" element={<PayPage />} />
-                <Route path="/business" element={<BusinessPage />} />
-                <Route path="/payment/:paymentId" element={<PaymentProcessor />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Layout>
+            <MainAppTour>
+              <Layout>
+                <Routes>
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/dashboard" element={<DashboardPage />} />
+                  <Route path="/pay" element={<PayPage />} />
+                  <Route path="/business" element={<BusinessPage />} />
+                  <Route path="/payment/:paymentId" element={<PaymentProcessor />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Layout>
+            </MainAppTour>
           </BrowserRouter>
         </TooltipProvider>
       </RainbowKitProvider>

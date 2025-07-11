@@ -5,10 +5,12 @@ import BusinessDashboardFallback from '../components/BusinessDashboardFallback';
 import BusinessRegistration from '../components/BusinessRegistration';
 import BusinessVault from '../components/BusinessVault';
 import BusinessPayment from '../components/BusinessPayment';
+import GuidedTour from '../components/GuidedTour';
 
 const BusinessPage: React.FC = () => {
   const { isConnected } = useAccount();
   const [currentView, setCurrentView] = useState<'dashboard' | 'register' | 'vault' | 'payment'>('dashboard');
+  const [isFirstTimeUser, setIsFirstTimeUser] = useState<boolean>(false);
   const [selectedVault, setSelectedVault] = useState<{
     address: string;
     name: string;
@@ -16,13 +18,22 @@ const BusinessPage: React.FC = () => {
   } | null>(null);
 
   // Debug: Log current view and connection status
+  // useEffect(() => {
+  //   console.log('BusinessPage rendered with:', {
+  //     currentView,
+  //     isConnected,
+  //     selectedVault
+  //   });
+  // }, [currentView, isConnected, selectedVault]);
+
+  // Check if this is the first time user is visiting the business page
   useEffect(() => {
-    console.log('BusinessPage rendered with:', {
-      currentView,
-      isConnected,
-      selectedVault
-    });
-  }, [currentView, isConnected, selectedVault]);
+    const hasVisitedBefore = localStorage.getItem('smartverse_has_visited_business');
+    if (!hasVisitedBefore) {
+      setIsFirstTimeUser(true);
+      localStorage.setItem('smartverse_has_visited_business', 'true');
+    }
+  }, []);
 
   const handleRegistrationSuccess = (vaultAddress: string) => {
     // Kembali ke dashboard setelah registrasi berhasil
@@ -57,49 +68,54 @@ const BusinessPage: React.FC = () => {
   switch (currentView) {
     case 'register':
       return (
-        <BusinessRegistration
-          onSuccess={handleRegistrationSuccess}
-          onCancel={handleBackToDashboard}
-        />
+        <GuidedTour isFirstTimeUser={false}>
+          <BusinessRegistration
+            onSuccess={handleRegistrationSuccess}
+            onCancel={handleBackToDashboard}
+          />
+        </GuidedTour>
       );
     
     case 'vault':
       return selectedVault ? (
-        <BusinessVault
-          vaultAddress={selectedVault.address}
-          businessName={selectedVault.name}
-          chainId={selectedVault.chainId}
-          onClose={handleBackToDashboard}
-          onCreatePayment={handleCreatePayment}
-        />
+        <GuidedTour isFirstTimeUser={false}>
+          <BusinessVault
+            vaultAddress={selectedVault.address}
+            businessName={selectedVault.name}
+            chainId={selectedVault.chainId}
+            onClose={handleBackToDashboard}
+            onCreatePayment={handleCreatePayment}
+          />
+        </GuidedTour>
       ) : (
         <div>Error: No vault selected</div>
       );
       
     case 'payment':
       return selectedVault ? (
-        <BusinessPayment
-          vaultAddress={selectedVault.address}
-          businessName={selectedVault.name}
-          onClose={handleBackToDashboard}
-        />
+        <GuidedTour isFirstTimeUser={false}>
+          <BusinessPayment
+            vaultAddress={selectedVault.address}
+            businessName={selectedVault.name}
+            onClose={handleBackToDashboard}
+          />
+        </GuidedTour>
       ) : (
         <div>Error: No vault selected</div>
       );
     
     case 'dashboard':
     default:
-      console.log('Rendering BusinessDashboard with props:', dashboardProps);
+      // console.log('Rendering BusinessDashboard with props:', dashboardProps);
       return (
-        <div>
-          <div style={{ padding: '10px', background: '#f0f9ff', borderRadius: '4px', marginBottom: '10px' }}>
-            Debug Panel: View = {currentView}, Connected = {isConnected ? 'Yes' : 'No'}
+        <GuidedTour isFirstTimeUser={isFirstTimeUser}>
+          <div>
+            {/* Wrap the original dashboard in an error boundary */}
+            <ErrorBoundary fallback={<BusinessDashboardFallback onCreateNewBusiness={handleCreateNewBusiness} />}>
+              <BusinessDashboard {...dashboardProps} />
+            </ErrorBoundary>
           </div>
-          {/* Wrap the original dashboard in an error boundary */}
-          <ErrorBoundary fallback={<BusinessDashboardFallback onCreateNewBusiness={handleCreateNewBusiness} />}>
-            <BusinessDashboard {...dashboardProps} />
-          </ErrorBoundary>
-        </div>
+        </GuidedTour>
       );
   }
 };

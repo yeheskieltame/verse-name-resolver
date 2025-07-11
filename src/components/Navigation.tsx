@@ -19,7 +19,7 @@ export const Navigation = () => {
 
   return (
     <div className="fixed top-0 left-0 right-0 z-50 px-4 sm:px-6 lg:px-8 pt-4">
-      <nav className="floating-nav backdrop-blur-xl bg-white/80 border border-gray-200/50 shadow-xl rounded-2xl max-w-6xl mx-auto">
+      <nav className="floating-nav backdrop-blur-xl bg-white/80 border border-gray-200/50 shadow-xl rounded-2xl max-w-6xl mx-auto tour-navigation">
         <div className="px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             {/* Logo Section */}
@@ -43,7 +43,7 @@ export const Navigation = () => {
                       isActive(item.path)
                         ? 'bg-purple-100 text-purple-700 shadow-sm'
                         : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                    }`}
+                    } ${item.path === '/dashboard' ? 'tour-dashboard-link' : ''} ${item.path === '/pay' ? 'tour-pay-link' : ''} ${item.path === '/business' ? 'tour-business-link' : ''}`}
                   >
                     <Icon className="w-4 h-4" />
                     <span className="font-medium text-sm">{item.label}</span>
@@ -55,7 +55,7 @@ export const Navigation = () => {
             {/* Right Section - Connect Button + Mobile Menu */}
             <div className="flex items-center gap-3">
               {/* RainbowKit Connect Button - Desktop Only */}
-              <div className="hidden lg:block connect-button-wrapper">
+              <div className="hidden lg:block connect-button-wrapper tour-wallet-connect">
                 <ConnectButton />
               </div>
               
