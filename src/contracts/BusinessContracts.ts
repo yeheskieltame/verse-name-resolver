@@ -18,14 +18,14 @@ export const BUSINESS_CONTRACTS = {
   
   // Taranium - Spoke chain
   taranium: {
-    chainId: 13000,
+    chainId: 9924,
     name: "Taranium",
     isHub: false,
     contracts: {
       MockIDRT: "0x836007d200a11a9Be432AaBeF3FFD18E14DC6B7B",
       Sender: "0xf98e7C7b561aa79A54807B90A09EE8796742Ad59"
     },
-    explorer: "https://testnet.taraxa.io"
+    explorer: "https://testnet-scan.taranium.com"
   },
   
   // Holesky - Spoke chain

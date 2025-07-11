@@ -746,6 +746,11 @@ export class CrossChainNameService implements CrossChainNameResolver {
     if (tokenAddress) {
       url += `&token=${tokenAddress}`;
       url += `&tokenSymbol=${encodeURIComponent(tokenSymbol)}`;
+      
+      // Add token amount specifically for better parsing in scanner
+      if (amount) {
+        url += `&tokenAmount=${amount}`;
+      }
     }
     
     return url;

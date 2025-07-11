@@ -103,6 +103,16 @@ const QRBusinessGenerator: React.FC<QRBusinessGeneratorProps> = ({
           formData.currency === 'IDRT' ? formData.tokenAddress : undefined,
           formData.currency === 'IDRT' ? formData.currency : undefined
         );
+        
+        // Log untuk debug info QR code
+        console.log("QR Code URL Generated:", {
+          vaultAddress,
+          amount: formData.amount,
+          category: formData.category,
+          tokenAddress: formData.currency === 'IDRT' ? formData.tokenAddress : undefined,
+          tokenSymbol: formData.currency === 'IDRT' ? formData.currency : undefined,
+          fullUrl: url
+        });
       }
       
       return url;
@@ -289,6 +299,17 @@ const QRBusinessGenerator: React.FC<QRBusinessGeneratorProps> = ({
                 onChange={(e) => handleInputChange('category', e.target.value)}
               />
             </div>
+            
+            {formData.currency === 'IDRT' && (
+              <div className="space-y-2 mt-2">
+                <Alert className="bg-blue-50">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription className="text-xs">
+                    <span className="font-semibold">Info Token IDRT:</span> QR code akan berisi alamat token <span className="font-mono text-xs">{formData.tokenAddress.slice(0, 6)}...{formData.tokenAddress.slice(-4)}</span> untuk pembayaran
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
           </TabsContent>
         </Tabs>
         
@@ -328,6 +349,13 @@ const QRBusinessGenerator: React.FC<QRBusinessGeneratorProps> = ({
                       {formData.amount} {formData.currency}
                     </span>
                   </div>
+                  
+                  {formData.currency === 'IDRT' && (
+                    <div className="flex justify-between items-center text-xs bg-gray-50 p-2 rounded">
+                      <span className="text-gray-600">Token:</span>
+                      <span className="font-mono">{formData.tokenAddress.slice(0, 6)}...{formData.tokenAddress.slice(-4)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Kategori:</span>
                     <span className="font-medium">{formData.category}</span>
@@ -379,7 +407,10 @@ const QRBusinessGenerator: React.FC<QRBusinessGeneratorProps> = ({
                         className="w-48 h-48 object-contain"
                       />
                       <p className="text-center text-sm text-gray-500">
-                        Gunakan QR code ini untuk menerima pembayaran dari pelanggan Anda.
+                        {formData.currency === 'IDRT' 
+                          ? `QR untuk pembayaran ${formData.amount} IDRT dengan token ${formData.tokenAddress.slice(0, 6)}...${formData.tokenAddress.slice(-4)}`
+                          : `QR untuk pembayaran ${formData.amount} ${formData.currency}`
+                        }
                       </p>
                     </div>
                     <Input

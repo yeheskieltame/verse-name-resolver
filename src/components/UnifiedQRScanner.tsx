@@ -8,7 +8,14 @@ import { useAccount, useBalance, useWriteContract, useWaitForTransactionReceipt,
 import { toast } from '@/hooks/use-toast';
 import { formatEther, parseEther } from 'viem';
 import { crossChainNameService } from '@/services/crossChainNameService';
-import { BUSINESS_ABI } from '@/contracts/BusinessContracts';
+import { 
+  getContractAddress, 
+  isSupportedChain, 
+  getNetworkInfo, 
+  BUSINESS_CONTRACTS,
+  BusinessVault_ABI,
+  MockIDRT_ABI
+} from '@/contracts/BusinessContracts';
 
 export const UnifiedQRScanner = () => {
   const { address: userAddress, isConnected } = useAccount();
@@ -77,7 +84,7 @@ export const UnifiedQRScanner = () => {
           toast({
             title: '✅ Pembayaran Berhasil!',
             description: paymentDetails?.type === 'business' 
-              ? `Pembayaran ${paymentDetails.tokenSymbol || (paymentDetails.tokenAddress ? 'IDRT' : 'ETH')} ke vault bisnis untuk kategori "${paymentDetails.category}" telah dikonfirmasi.`
+              ? `Pembayaran ${paymentDetails.amount || '0'} ${paymentDetails.tokenSymbol || (paymentDetails.tokenAddress ? 'IDRT' : getNativeCurrencySymbol())} ke vault bisnis untuk kategori "${paymentDetails.category}" telah dikonfirmasi.`
               : `Pembayaran ke ${paymentDetails?.recipient.slice(0, 8)}... telah dikonfirmasi.`,
           });
         } else {
@@ -95,6 +102,52 @@ export const UnifiedQRScanner = () => {
     setProcessingMessage('Menganalisis QR code...');
     
     try {
+      // Extra direct check for IDRT in QR URL 
+      if (url.includes('IDRT') || url.includes('idrt') || url.includes('token=0x')) {
+        console.log('Detected potential IDRT token reference in QR code');
+        
+        // Try to extract amount directly from the QR string
+        const amountMatch = url.match(/amount=(\d+\.?\d*)/i);
+        const valueMatch = url.match(/value=(\d+\.?\d*)/i);
+        const numberMatch = url.match(/(\d{5,})/); // Look for numbers with at least 5 digits (likely amounts)
+        
+        const extractedAmount = amountMatch?.[1] || valueMatch?.[1] || (numberMatch?.[1] && !url.includes(numberMatch[1] + '.')) ? numberMatch?.[1] : null;
+        
+        if (extractedAmount) {
+          console.log('Extracted potential IDRT amount from QR:', extractedAmount);
+          
+          // Create a business payment with IDRT token if we can find a recipient address
+          const addressMatch = url.match(/(?:address|recipient|to)=([0-9a-fx]+)/i);
+          const recipient = addressMatch?.[1];
+          
+          if (recipient) {
+            console.log('Found recipient address in QR:', recipient);
+            
+            // Try to get token address
+            const tokenAddressMatch = url.match(/(?:token|contract)=([0-9a-fx]+)/i);
+            const tokenAddress = tokenAddressMatch?.[1] || getNetworkToken();
+            
+            if (tokenAddress) {
+              const categoryMatch = url.match(/(?:category|desc)=([^&# ]+)/i);
+              const category = categoryMatch?.[1] ? decodeURIComponent(categoryMatch[1]) : 'Pembayaran IDRT QR';
+              
+              setPaymentDetails({
+                type: 'business',
+                recipient: recipient,
+                amount: extractedAmount,
+                category: category,
+                tokenAddress: tokenAddress as string,
+                tokenSymbol: 'IDRT'
+              });
+              
+              setProcessingStatus('idle');
+              setProcessingMessage(`Siap melakukan pembayaran IDRT ke Vault Bisnis`);
+              return;
+            }
+          }
+        }
+      }
+      
       // Check if this is a DApp URL for business payment
       if (url.includes('/pay?') && url.includes('address=')) {
         // Parse business payment URL
@@ -106,23 +159,89 @@ export const UnifiedQRScanner = () => {
         const category = params.get('category');
         const tokenAddress = params.get('token');
         const tokenSymbol = params.get('tokenSymbol') || (tokenAddress ? 'IDRT' : undefined);
+        const tokenAmount = params.get('tokenAmount'); // Get token amount specifically
+        
+        // If scanner detects IDRT format but no tokenAmount
+        // Try to extract amount from URL fragment if it's in a special format
+        let extractedTokenAmount = tokenAmount;
+        
+        if (tokenAddress && !extractedTokenAmount) {
+          // Look for patterns like #amount=100000 in the URL
+          if (urlObj.hash && urlObj.hash.includes('amount=')) {
+            const hashParams = new URLSearchParams(urlObj.hash.substring(1));
+            extractedTokenAmount = hashParams.get('amount');
+            console.log('Extracted amount from URL hash:', extractedTokenAmount);
+          }
+          
+          // Check if there's a specific format in the path that might contain the amount
+          const pathParts = urlObj.pathname.split('/');
+          for (const part of pathParts) {
+            if (part.includes('idrt') && part.match(/\d+/)) {
+              // Extract numbers from path containing 'idrt'
+              const match = part.match(/(\d+)/);
+              if (match && match[1]) {
+                extractedTokenAmount = match[1];
+                console.log('Extracted amount from path:', extractedTokenAmount);
+                break;
+              }
+            }
+          }
+        }
         
         if (!recipientAddress) {
           throw new Error('QR code tidak berisi alamat penerima yang valid');
         }
         
+        // If token address exists, prioritize tokenAmount
+        const finalAmount = tokenAddress ? (extractedTokenAmount || tokenAmount || amount) : amount;
+        
+        // Parse any data from the URL path - sometimes QR codes have embedded data
+        if (tokenAddress && !finalAmount && urlObj.pathname) {
+          // Additional fallback - try to find numbers in the URL path
+          const pathMatch = urlObj.pathname.match(/(\d+)/);
+          if (pathMatch && pathMatch[1]) {
+            console.log('Found potential amount in path:', pathMatch[1]);
+            setPaymentDetails({
+              type: 'business',
+              recipient: recipientAddress,
+              amount: pathMatch[1],
+              category: category || 'Pembayaran QR',
+              tokenAddress: tokenAddress,
+              tokenSymbol: tokenSymbol
+            });
+            
+            setProcessingStatus('idle');
+            setProcessingMessage(`Siap melakukan pembayaran token ke Vault Bisnis`);
+            return;
+          }
+        }
+        
         setPaymentDetails({
           type: 'business',
           recipient: recipientAddress,
-          amount: amount || undefined,
+          amount: finalAmount || undefined,
           category: category || 'Pembayaran QR',
           tokenAddress: tokenAddress || undefined,
           tokenSymbol: tokenSymbol
         });
         
-        setProcessingStatus('idle');
-        setProcessingMessage(`Siap melakukan pembayaran ke Vault Bisnis`);
+        console.log('Final QR Code Data:', {
+          recipientAddress,
+          amount: finalAmount,
+          category,
+          tokenAddress,
+          tokenSymbol,
+          originalTokenAmount: tokenAmount,
+          extractedTokenAmount,
+          url
+        });
         
+        setProcessingStatus('idle');
+        if (tokenAddress) {
+          setProcessingMessage(`Siap melakukan pembayaran token ${tokenSymbol || 'IDRT'} ke Vault Bisnis`);
+        } else {
+          setProcessingMessage(`Siap melakukan pembayaran ${getNativeCurrencySymbol()} ke Vault Bisnis`);
+        }
       } else if (url.startsWith('ethereum:')) {
         // Parse as Ethereum URI (EIP-681) for personal payment
         const addressPart = url.replace('ethereum:', '').split('?')[0];
@@ -243,7 +362,22 @@ export const UnifiedQRScanner = () => {
     try {
       const vaultAddress = paymentDetails.recipient as `0x${string}`;
       const category = paymentDetails.category || 'Pembayaran QR';
-      const amount = paymentDetails.amount ? parseEther(paymentDetails.amount) : 0n;
+      
+      // Parse amount string with validation
+      let amount: bigint;
+      if (paymentDetails.amount) {
+        try {
+          // Clean up the amount string (remove any non-numeric/decimal characters)
+          const cleanAmount = paymentDetails.amount.replace(/[^\d.]/g, '');
+          amount = parseEther(cleanAmount);
+          console.log(`Amount parsed: ${cleanAmount} -> ${amount.toString()}`);
+        } catch (error) {
+          console.error('Error parsing amount:', error);
+          throw new Error(`Gagal memproses jumlah pembayaran: ${paymentDetails.amount}`);
+        }
+      } else {
+        amount = 0n;
+      }
       
       // Validate amount
       if (amount <= 0n) {
@@ -258,9 +392,26 @@ export const UnifiedQRScanner = () => {
       // Check if this is a token payment (IDRT) or a native (ETH) payment
       if (paymentDetails.tokenAddress) {
         // Token payment (IDRT)
-        const tokenAddress = paymentDetails.tokenAddress as `0x${string}`;
+        let tokenAddress = paymentDetails.tokenAddress as `0x${string}`;
+        
+        // Auto-detect token address based on current network
+        const networkTokenAddress = getNetworkToken();
+        if (networkTokenAddress) {
+          // Use network-specific token address instead of the one from the QR code
+          tokenAddress = networkTokenAddress;
+          console.log('Using network-specific token address:', tokenAddress);
+        } else {
+          console.warn('Current network does not have a MockIDRT contract, using address from QR code');
+        }
+        
+        // Check if we're on a supported chain
+        if (!isSupportedChain(chainId)) {
+          throw new Error(`Jaringan ${chain?.name || chainId} tidak didukung untuk transaksi bisnis. Silakan beralih ke Sepolia atau jaringan lain yang didukung.`);
+        }
         
         console.log('Processing token payment (IDRT):', {
+          network: currentNetwork?.name || chainId.toString(),
+          chainId,
           vaultAddress,
           tokenAddress,
           category,
@@ -300,7 +451,15 @@ export const UnifiedQRScanner = () => {
         setTxHash(hash);
       } else {
         // Native payment (ETH)
+        // Check if we're on a supported chain
+        if (!isSupportedChain(chainId)) {
+          throw new Error(`Jaringan ${chain?.name || chainId} tidak didukung untuk transaksi bisnis. Silakan beralih ke Sepolia atau jaringan lain yang didukung.`);
+        }
+        
         console.log('Processing native payment (ETH):', {
+          network: currentNetwork?.name || chainId.toString(),
+          chainId,
+          currency: getNativeCurrencySymbol(),
           vaultAddress,
           category,
           amount: amount.toString()
@@ -401,61 +560,87 @@ export const UnifiedQRScanner = () => {
   const renderPaymentConfirmation = () => {
     if (!paymentDetails) return null;
     
+    // Update payment details to show native currency symbol
+    const { type, recipient, amount, category, tokenAddress, tokenSymbol } = paymentDetails;
+    
+    // Display currency based on chain connection
+    const displayAmount = amount 
+      ? `${formatAmountForDisplay(amount, !!tokenAddress)} ${tokenSymbol || (tokenAddress ? 'IDRT' : getNativeCurrencySymbol())}` 
+      : '';
+    
+    const networkNotice = !isSupportedChain(chainId) 
+      ? `⚠️ Jaringan ${chain?.name || chainId} tidak didukung. Harap beralih ke jaringan yang didukung.` 
+      : '';
+    
     return (
       <div className="space-y-4">
         <div className="space-y-2">
           <h3 className="text-lg font-medium">Detail Pembayaran</h3>
           
+          {networkNotice && (
+            <Alert className="bg-orange-50 border-orange-200">
+              <AlertCircle className="h-4 w-4 text-orange-600" />
+              <AlertDescription className="text-orange-600">
+                {networkNotice}
+              </AlertDescription>
+            </Alert>
+          )}
+          
           <div className="grid grid-cols-2 gap-2">
             <div className="text-sm text-gray-500">Jenis:</div>
             <div className="text-sm font-medium">
-              {paymentDetails.type === 'personal' ? 'Pembayaran Personal' : 'Pembayaran ke Bisnis'}
+              {type === 'personal' ? 'Pembayaran Personal' : 'Pembayaran ke Bisnis'}
             </div>
             
             <div className="text-sm text-gray-500">Penerima:</div>
             <div className="text-sm font-mono break-all">
-              {paymentDetails.recipient.slice(0, 6)}...{paymentDetails.recipient.slice(-4)}
+              {recipient.slice(0, 6)}...{recipient.slice(-4)}
             </div>
             
-            {paymentDetails.amount && (
+            {amount && (
               <>
                 <div className="text-sm text-gray-500">Jumlah:</div>
                 <div className="text-sm font-bold text-green-600">
-                  {paymentDetails.amount} {paymentDetails.tokenSymbol || (paymentDetails.tokenAddress ? 'IDRT' : 'ETH')}
+                  {displayAmount}
                 </div>
               </>
             )}
             
-            {paymentDetails.tokenAddress && (
+            {tokenAddress && (
               <>
                 <div className="text-sm text-gray-500">Token:</div>
                 <div className="text-sm font-mono break-all">
-                  {paymentDetails.tokenAddress.slice(0, 6)}...{paymentDetails.tokenAddress.slice(-4)}
+                  {tokenAddress.slice(0, 6)}...{tokenAddress.slice(-4)}
                 </div>
               </>
             )}
             
-            {paymentDetails.type === 'business' && paymentDetails.category && (
+            {type === 'business' && category && (
               <>
                 <div className="text-sm text-gray-500">Kategori:</div>
                 <div className="text-sm font-medium">
-                  {paymentDetails.category}
+                  {category}
                 </div>
               </>
             )}
+            
+            <div className="text-sm text-gray-500">Jaringan:</div>
+            <div className="text-sm font-medium">
+              {currentNetwork?.name || `Chain ID: ${chainId}`}
+            </div>
           </div>
           
-          {paymentDetails.type === 'business' && (
+          {type === 'business' && (
             <Alert className="mt-2 bg-blue-50 border-blue-200">
               <AlertCircle className="h-4 w-4 text-blue-600" />
               <AlertDescription className="text-blue-600">
-                {paymentDetails.tokenAddress ? (
+                {tokenAddress ? (
                   <>
-                    Pembayaran akan menggunakan token {paymentDetails.tokenSymbol || 'IDRT'} melalui fungsi <code className="font-mono">depositToken</code> ke dalam vault bisnis dengan kategori "{paymentDetails.category}".
+                    Pembayaran akan menggunakan token {tokenSymbol || 'IDRT'} melalui fungsi <code className="font-mono">depositToken</code> ke dalam vault bisnis dengan kategori "{category}".
                   </>
                 ) : (
                   <>
-                    Pembayaran akan menggunakan fungsi <code className="font-mono">depositNative</code> ke dalam vault bisnis dengan kategori "{paymentDetails.category}".
+                    Pembayaran akan menggunakan fungsi <code className="font-mono">depositNative</code> ke dalam vault bisnis dengan kategori "{category}".
                   </>
                 )}
               </AlertDescription>
@@ -466,7 +651,7 @@ export const UnifiedQRScanner = () => {
         <div className="flex flex-col gap-2">
           <Button 
             onClick={processPayment}
-            disabled={isContractWritePending || isWaitingForTx || processingStatus === 'success'}
+            disabled={isContractWritePending || isWaitingForTx || processingStatus === 'success' || (!isSupportedChain(chainId) && type === 'business')}
             className="w-full"
           >
             {isContractWritePending || isWaitingForTx ? (
@@ -479,6 +664,8 @@ export const UnifiedQRScanner = () => {
                 <CheckCircle className="w-4 h-4 mr-2" />
                 Pembayaran Berhasil
               </>
+            ) : (!isSupportedChain(chainId) && type === 'business') ? (
+              'Jaringan Tidak Didukung'
             ) : (
               'Konfirmasi Pembayaran'
             )}
@@ -494,6 +681,53 @@ export const UnifiedQRScanner = () => {
         </div>
       </div>
     );
+  };  // Network detection and contract address helper
+  const currentNetwork = getNetworkInfo(chainId);
+  const isHubChain = currentNetwork?.isHub || false;
+  
+  // Get network-specific contract addresses
+  const getNetworkToken = (): `0x${string}` | undefined => {
+    if (!currentNetwork) return undefined;
+    return getContractAddress(chainId, 'MockIDRT') as `0x${string}` | undefined;
+  };
+  
+  // Display currency based on current network
+  const getNativeCurrencySymbol = (): string => {
+    if (!currentNetwork) return 'ETH';
+    // Different networks may have different native currencies
+    if (chainId === 11155111) return 'ETH'; // Sepolia
+    if (chainId === 13000) return 'TARA'; // Taranium
+    if (chainId === 17000) return 'ETH'; // Holesky
+    if (chainId === 1115) return 'CORE'; // Core DAO
+    if (chainId === 80002) return 'MATIC'; // Polygon Amoy
+    return 'ETH'; // Default
+  };
+  
+  // Create a helper function to format amounts
+  const formatAmountForDisplay = (amount: string | undefined, isToken: boolean): string => {
+    if (!amount) return '0';
+    
+    // For IDRT or other tokens, we might need to handle different decimal formats
+    try {
+      // Remove any non-numeric characters except decimal point
+      const cleanAmount = amount.replace(/[^\d.]/g, '');
+      
+      // For display purposes, we can format it with commas for thousands
+      const num = parseFloat(cleanAmount);
+      return num.toLocaleString('id-ID', { 
+        minimumFractionDigits: 0,
+        maximumFractionDigits: isToken ? 2 : 6  // IDRT typically has 2 decimals, ETH has 18
+      });
+    } catch (e) {
+      console.error('Error formatting amount:', e);
+      return amount; // Return original if parsing fails
+    }
+  };
+  
+  // Get the business ABI for interactions
+  const BUSINESS_ABI = {
+    BusinessVault: BusinessVault_ABI,
+    MockIDRT: MockIDRT_ABI,
   };
   
   // UI based on scanning state
