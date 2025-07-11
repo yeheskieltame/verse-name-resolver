@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { Dialog, DialogContent } from './ui/dialog';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -14,11 +16,16 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   Building2,
-  Layers
+  Layers,
+  FileText,
+  Filter,
+  Printer
 } from 'lucide-react';
 import { useAccount } from 'wagmi';
 import { BUSINESS_CONTRACTS, BUSINESS_CATEGORIES } from '../contracts/BusinessContracts';
-import { SmartVerseBusinessService } from '../services/smartVerseBusiness';
+import { SmartVerseBusinessService, BusinessTransaction } from '../services/smartVerseBusiness';
+import TransactionInvoice from './TransactionInvoice';
+import { useReactToPrint } from 'react-to-print';
 
 interface FinancialReportProps {
   businessVaults: Array<{
@@ -77,6 +84,20 @@ const FinancialReport: React.FC<FinancialReportProps> = ({ businessVaults, trans
   const [totalExpense, setTotalExpense] = useState(0);
   const [netProfit, setNetProfit] = useState(0);
   const [profitMargin, setProfitMargin] = useState(0);
+
+  // Filter and chart data states
+  const [filterPeriod, setFilterPeriod] = useState('all');
+  const [filterChain, setFilterChain] = useState('all');
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [chartData, setChartData] = useState<CategorySummary[]>([]);
+  const [chainSummary, setChainSummary] = useState<ChainSummary[]>([]);
+  const [selectedTransaction, setSelectedTransaction] = useState<BusinessTransaction | null>(null);
+  
+  // For invoice printing
+  const invoiceRef = useRef<HTMLDivElement>(null);
+  const handlePrint = useReactToPrint({
+    documentTitle: 'Transaction Invoice',
+  });
 
   useEffect(() => {
     if (businessVaults.length > 0) {
@@ -600,6 +621,77 @@ const FinancialReport: React.FC<FinancialReportProps> = ({ businessVaults, trans
           </CardContent>
         </Card>
       </div>
+
+      {/* Invoice Section - Hidden by default */}
+      <Dialog open={!!selectedTransaction} onOpenChange={() => setSelectedTransaction(null)}>
+        <DialogContent className="max-w-3xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Invoice Transaksi</h3>
+            <Button variant="outline" onClick={handlePrint}>
+              <Printer className="h-4 w-4 mr-2" />
+              Cetak
+            </Button>
+          </div>
+          
+          {/* Transaction details for the invoice */}
+          {selectedTransaction && (
+            <div ref={invoiceRef} className="space-y-4">
+              <div className="p-4 bg-gray-100 rounded-lg">
+                <h4 className="text-md font-semibold">Detail Transaksi</h4>
+                <div className="grid grid-cols-2 gap-4 mt-2">
+                  <div>
+                    <p className="text-sm text-gray-600">ID Transaksi</p>
+                    <p className="text-sm font-medium">{selectedTransaction.id}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Tanggal</p>
+                    <p className="text-sm font-medium">
+                      {new Date(selectedTransaction.timestamp).toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Dari</p>
+                    <p className="text-sm font-medium">{selectedTransaction.from}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Ke</p>
+                    <p className="text-sm font-medium">{selectedTransaction.to}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Jumlah</p>
+                    <p className="text-sm font-medium">
+                      Rp {formatCurrency(parseFloat(selectedTransaction.amount))} IDRT
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Status</p>
+                    <p className="text-sm font-medium">
+                      {selectedTransaction.status.charAt(0).toUpperCase() + selectedTransaction.status.slice(1)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Add more sections as needed for the invoice */}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Invoice Dialog */}
+      {selectedTransaction && (
+        <Dialog open={!!selectedTransaction} onOpenChange={(open) => !open && setSelectedTransaction(null)}>
+          <DialogContent className="max-w-4xl p-0" onInteractOutside={(e) => e.preventDefault()}>
+            <div ref={invoiceRef}>
+              <TransactionInvoice 
+                transaction={selectedTransaction} 
+                onClose={() => setSelectedTransaction(null)}
+                onPrint={handlePrint}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };

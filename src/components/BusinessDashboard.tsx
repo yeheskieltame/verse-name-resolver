@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Progress } from './ui/progress';
+import { Dialog, DialogContent } from './ui/dialog';
 import { 
   Building2, 
   Wallet, 
@@ -19,13 +20,19 @@ import {
   DollarSign,
   Users,
   Activity,
-  QrCode
+  QrCode,
+  Search,
+  Filter,
+  FileText
 } from 'lucide-react';
 import { useAccount, useChainId } from 'wagmi';
 import { BUSINESS_CONTRACTS, getContractAddress, isSupportedChain, BusinessVault_ABI } from '../contracts/BusinessContracts';
-import { SmartVerseBusinessService } from '../services/smartVerseBusiness';
+import { SmartVerseBusinessService, BusinessTransaction } from '../services/smartVerseBusiness';
 import FinancialReport from './FinancialReport';
 import BusinessPayment from './BusinessPayment';
+import TransactionInvoice from './TransactionInvoice';
+import { useReactToPrint } from 'react-to-print';
+import { formatAddress, formatTimestamp, formatTimeAgo, formatCurrency, getTransactionBadgeColor } from '../utils/formatters';
 
 interface BusinessDashboardProps {
   onCreateNewBusiness?: () => void;
@@ -79,6 +86,13 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
   const [selectedVaultForPayment, setSelectedVaultForPayment] = useState<BusinessVault | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<BusinessTransaction | null>(null);
+  
+  // For invoice printing
+  const invoiceRef = useRef<HTMLDivElement>(null);
+  const handlePrint = useReactToPrint({
+    documentTitle: 'Business Transaction Invoice',
+  });
 
   // Helper functions for formatting
   const getChainName = (chainId: number): string => {
@@ -148,154 +162,82 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
           let summary;
           try {
             summary = await businessService.getBusinessSummary(vaultAddrTyped);
-          } catch (summaryError) {
-            summary = {
-              balance: '0',
-              totalIncome: '0',
-              totalExpenses: '0',
-              transactionCount: 0
-            };
+            setTotalBalance(summary.tokenBalance || summary.balance);
+            setMonthlyIncome(summary.tokenIncome || summary.totalIncome);
+            setMonthlyExpense(summary.tokenExpense || summary.totalExpenses);
+          } catch (error) {
+            console.error('Error getting business summary:', error);
           }
           
-          // Get transactions
-          let transactions;
+          // Get business transactions
+          let txs;
           try {
-            transactions = await businessService.getBusinessTransactions(vaultAddrTyped);
-          } catch (txError) {
-            transactions = [];
+            txs = await businessService.getBusinessTransactions(vaultAddrTyped);
+            
+            // Create proper Transaction objects for UI
+            const uiTransactions: Transaction[] = txs.map(tx => ({
+              id: tx.id,
+              type: tx.isIncome ? 'deposit' : 'withdraw',
+              amount: tx.amount,
+              currency: tx.isToken ? 'IDRT' : 'ETH',
+              from: tx.from,
+              to: tx.to,
+              timestamp: new Date(tx.timestamp * 1000).toLocaleString(),
+              chainId: tx.chainId,
+              chainName: getChainName(tx.chainId),
+              status: tx.status,
+              hash: tx.txHash || '',
+              category: tx.category,
+              description: tx.description
+            }));
+            
+            setAllTransactions(uiTransactions);
+            
+            // Set only 5 most recent transactions for the overview tab
+            setRecentTransactions(uiTransactions.slice(0, 5));
+          } catch (error) {
+            console.error('Error getting business transactions:', error);
           }
           
-          // Get business name
-          let businessName = '';
-          try {
-            businessName = await businessService.getBusinessName(vaultAddrTyped);
-          } catch (nameError) {
-            // Ignore name errors
-          }
+          // Get vault details
+          const businessName = await businessService.getBusinessName(vaultAddrTyped);
+          // Fallback values jika API tidak tersedia
+          const owner = address;
+          const category = "Umum";
+          const tokenBalance = "0";
           
-          // Create business vault data
-          const vaultData = [{
+          // Create business vault object for UI
+          const vault: BusinessVault = {
             address: userVaultAddress,
-            name: businessName, // tetap tampilkan meskipun kosong
-            owner: address,
-            balance: summary.balance,
-            tokenBalance: summary.tokenBalance || '0',
-            chainId: 11155111,
-            chainName: 'Sepolia',
-            transactions: summary.transactionCount,
-            lastActivity: transactions.length > 0 ? formatDate(transactions[0].timestamp) : 'Tidak ada aktivitas',
-            category: 'general'
-          }];
+            name: businessName,
+            owner: owner,
+            balance: summary?.balance || '0',
+            tokenBalance: tokenBalance || '0', // IDRT balance
+            chainId: chainId,
+            chainName: getChainName(chainId),
+            transactions: txs?.length || 0,
+            lastActivity: txs && txs.length > 0 ? formatDate(txs[0].timestamp) : 'Belum ada',
+            category: category || 'Umum'
+          };
           
-          setBusinessVaults(vaultData);
-          
-          // Format all transactions
-          const formattedTransactions = transactions.map(tx => ({
-            id: tx.id,
-            type: (tx.isIncome ? 'deposit' : 'withdraw') as 'deposit' | 'withdraw' | 'transfer',
-            amount: tx.amount,
-            currency: tx.isToken ? tx.tokenSymbol || 'IDRT' : 'ETH',
-            from: tx.from,
-            to: tx.to,
-            timestamp: formatDate(tx.timestamp),
-            chainId: tx.chainId,
-            chainName: getChainName(tx.chainId),
-            status: tx.status,
-            hash: tx.txHash || '',
-            category: tx.category || '',
-            description: tx.description || ''
-          }));
-          
-          // Sort transactions by timestamp, newest first
-          formattedTransactions.sort((a, b) => {
-            const dateA = new Date(a.timestamp).getTime();
-            const dateB = new Date(b.timestamp).getTime();
-            return dateB - dateA;
-          });
-          
-          // Store all transactions
-          setAllTransactions(formattedTransactions);
-          
-          // Set only 5 most recent transactions for the overview tab
-          setRecentTransactions(formattedTransactions.slice(0, 5));
-          
-          // Set financial metrics
-          if (summary.tokenBalance && parseFloat(summary.tokenBalance) > 0) {
-            setTotalBalance(summary.tokenBalance);
-          } else {
-            setTotalBalance(summary.balance);
-          }
-          
-          if (summary.tokenIncome && parseFloat(summary.tokenIncome) > 0) {
-            setMonthlyIncome(summary.tokenIncome);
-          } else {
-            setMonthlyIncome(summary.totalIncome);
-          }
-          
-          if (summary.tokenExpense && parseFloat(summary.tokenExpense) > 0) {
-            setMonthlyExpense(summary.tokenExpense);
-          } else {
-            setMonthlyExpense(summary.totalExpenses);
-          }
+          setBusinessVaults([vault]);
         } else {
-          // No business vault found or not registered
+          // No business vault found
           setBusinessVaults([]);
           setRecentTransactions([]);
-          setTotalBalance('0');
-          setMonthlyIncome('0');
-          setMonthlyExpense('0');
+          setAllTransactions([]);
         }
-      } catch (vaultError) {
-        // Error getting vault address
-        setBusinessVaults([]);
-        setTotalBalance('0');
-        setMonthlyIncome('0');
-        setMonthlyExpense('0');
+      } catch (error) {
+        console.error('Error getting user vault:', error);
       }
+      
+      setLoading(false);
+      setRefreshing(false);
     } catch (error) {
-      // General error
-      setBusinessVaults([]);
-      setRecentTransactions([]);
-      setTotalBalance('0');
-      setMonthlyIncome('0');
-      setMonthlyExpense('0');
-      setError('Terjadi kesalahan saat memuat data bisnis. Silakan refresh halaman atau coba lagi nanti.');
-    } finally {
+      console.error('Error loading business data:', error);
       setLoading(false);
       setRefreshing(false);
     }
-  };
-
-  const getTransactionIcon = (type: string) => {
-    switch (type) {
-      case 'deposit':
-        return <ArrowDownLeft className="h-4 w-4 text-green-500" />;
-      case 'withdraw':
-        return <ArrowUpRight className="h-4 w-4 text-red-500" />;
-      case 'transfer':
-        return <ArrowUpRight className="h-4 w-4 text-blue-500" />;
-      default:
-        return <Activity className="h-4 w-4" />;
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <Badge variant="outline" className="text-green-600 border-green-300">Selesai</Badge>;
-      case 'pending':
-        return <Badge variant="outline" className="text-yellow-600 border-yellow-300">Pending</Badge>;
-      case 'failed':
-        return <Badge variant="outline" className="text-red-600 border-red-300">Gagal</Badge>;
-      default:
-        return <Badge variant="outline">Unknown</Badge>;
-    }
-  };
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await loadBusinessData();
-    setRefreshing(false);
   };
 
   const handleCreatePayment = (vault: BusinessVault) => {
@@ -303,69 +245,53 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
     setShowPaymentModal(true);
   };
 
-  const handleClosePaymentModal = () => {
-    setShowPaymentModal(false);
-    setSelectedVaultForPayment(null);
+  // Helper function for transaction status badges
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'success':
+        return <Badge className="bg-green-100 text-green-800">Sukses</Badge>;
+      case 'pending':
+        return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
+      case 'processing':
+        return <Badge className="bg-blue-100 text-blue-800">Diproses</Badge>;
+      case 'failed':
+        return <Badge className="bg-red-100 text-red-800">Gagal</Badge>;
+      default:
+        return null;
+    }
   };
 
-  if (showPaymentModal && selectedVaultForPayment) {
-    return (
-      <BusinessPayment
-        vaultAddress={selectedVaultForPayment.address}
-        businessName={selectedVaultForPayment.name}
-        onClose={handleClosePaymentModal}
-      />
-    );
-  }
+  // Helper function for transaction icon
+  const getTransactionIcon = (type: string) => {
+    switch (type) {
+      case 'deposit':
+        return <div className="p-2 bg-green-100 rounded-full">
+          <ArrowDownLeft className="h-4 w-4 text-green-600" />
+        </div>;
+      case 'withdraw':
+        return <div className="p-2 bg-red-100 rounded-full">
+          <ArrowUpRight className="h-4 w-4 text-red-600" />
+        </div>;
+      case 'transfer':
+        return <div className="p-2 bg-blue-100 rounded-full">
+          <TrendingUp className="h-4 w-4 text-blue-600" />
+        </div>;
+      default:
+        return null;
+    }
+  };
 
-  if (!isConnected) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <Building2 className="h-12 w-12 text-blue-600 mx-auto mb-4" />
-            <CardTitle>SmartVerse Business</CardTitle>
-            <CardDescription>
-              Kelola bisnis UMKM Anda dengan brankas digital lintas-chain
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-center">
-            <p className="text-gray-600 mb-4">
-              Silakan hubungkan wallet Anda untuk mengakses dashboard bisnis
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-6 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Memuat data bisnis Anda...</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
+  // Show error state if address is connected but not on the right chain
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle>Error</CardTitle>
+      <div className="max-w-7xl mx-auto px-4 py-8 mt-8">
+        <Card className="w-full shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-red-600">Error</CardTitle>
           </CardHeader>
-          <CardContent className="p-6 text-center">
-            <div className="text-red-500 mb-4">{error}</div>
-            <Button onClick={() => {
-              setError(null);
-              setLoading(true);
-              loadBusinessData();
-            }}>
+          <CardContent>
+            <p>{error}</p>
+            <Button variant="default" className="mt-4" onClick={loadBusinessData}>
               Coba Lagi
             </Button>
           </CardContent>
@@ -374,128 +300,224 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8 tour-dashboard-header">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                SmartVerse Business
-              </h1>
-              <p className="text-gray-600">
-                Kelola bisnis UMKM Anda dengan brankas digital lintas-chain
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-8 mt-8">
+        <Card className="w-full shadow-sm">
+          <CardHeader>
+            <CardTitle>Business Dashboard</CardTitle>
+            <CardDescription>Memuat data bisnis Anda...</CardDescription>
+          </CardHeader>
+          <CardContent className="pb-8">
+            <div className="flex justify-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show empty state if no wallet connected
+  if (!isConnected) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-8 mt-8">
+        <Card className="w-full shadow-sm">
+          <CardHeader>
+            <CardTitle>Business Dashboard</CardTitle>
+            <CardDescription>Connect your wallet to manage your business</CardDescription>
+          </CardHeader>
+          <CardContent className="pb-8">
+            <div className="text-center py-8">
+              <Wallet className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Wallet Not Connected
+              </h3>
+              <p className="text-gray-500 mb-6">
+                Please connect your wallet to view your business details
               </p>
-              {chainId !== 11155111 && (
-                <div className="mt-2 px-3 py-1 bg-yellow-100 text-yellow-800 rounded-md text-sm">
-                  ⚠️ Silakan switch ke Sepolia network untuk menggunakan fitur Business
-                </div>
-              )}
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
-                <Download className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-                Refresh Data
-              </Button>
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                Ekspor Data
-              </Button>
-              <Button size="sm" onClick={onCreateNewBusiness} className="tour-create-business">
-                <PlusCircle className="h-4 w-4 mr-2" />
-                Buat Bisnis Baru
-              </Button>
-            </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 tour-business-summary">
-          <Card>
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="space-y-6">
+        {/* Jika belum punya bisnis, tampilkan create business modal */}
+        {businessVaults.length === 0 && (
+          <Card className="bg-blue-50 border border-blue-200">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Saldo (IDRT)</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {totalBalance === '0' ? 'Rp 0' : `Rp ${parseFloat(totalBalance).toLocaleString()}`}
-                  </p>
+                <div className="flex items-center space-x-4">
+                  <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                    <Building2 className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg">Buat Bisnis Pertama Anda</h3>
+                    <p className="text-gray-600">Mulai transaksi bisnis dengan blockchain</p>
+                  </div>
                 </div>
-                <div className="p-3 bg-blue-100 rounded-full">
-                  <DollarSign className="h-6 w-6 text-blue-600" />
-                </div>
+                <Button 
+                  onClick={onCreateNewBusiness}
+                  className="tour-create-business"
+                >
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  Buat Bisnis
+                </Button>
               </div>
             </CardContent>
           </Card>
+        )}
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Pendapatan (IDRT)</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    {monthlyIncome === '0' ? 'Rp 0' : `Rp ${parseFloat(monthlyIncome).toLocaleString()}`}
-                  </p>
-                </div>
-                <div className="p-3 bg-green-100 rounded-full">
-                  <TrendingUp className="h-6 w-6 text-green-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Pengeluaran (IDRT)</p>
-                  <p className="text-2xl font-bold text-red-600">
-                    {monthlyExpense === '0' ? 'Rp 0' : `Rp ${parseFloat(monthlyExpense).toLocaleString()}`}
-                  </p>
-                </div>
-                <div className="p-3 bg-red-100 rounded-full">
-                  <TrendingDown className="h-6 w-6 text-red-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Bisnis</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {businessVaults.length}
-                  </p>
-                </div>
-                <div className="p-3 bg-purple-100 rounded-full">
-                  <Building2 className="h-6 w-6 text-purple-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Main Content */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview">Ringkasan</TabsTrigger>
-            <TabsTrigger value="vaults" className="tour-vaults">Brankas Bisnis</TabsTrigger>
+        {/* Dashboard content */}
+        <Tabs 
+          defaultValue="overview" 
+          value={activeTab} 
+          onValueChange={setActiveTab}
+          className="space-y-6"
+        >
+          <TabsList className="grid grid-cols-4 mb-4 tour-tabs">
+            <TabsTrigger value="overview" className="tour-overview">Ringkasan</TabsTrigger>
+            <TabsTrigger value="vaults" className="tour-vaults">Bisnis</TabsTrigger>
             <TabsTrigger value="transactions" className="tour-transactions">Transaksi</TabsTrigger>
             <TabsTrigger value="reports" className="tour-reports">Laporan</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+              {/* Total Balance Card */}
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Total Saldo
+                      </p>
+                      <h2 className="text-2xl font-bold">
+                        {parseFloat(totalBalance) > 0 
+                          ? `Rp ${parseFloat(totalBalance).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          : 'Rp 0,00'}
+                      </h2>
+                    </div>
+                    <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+                      <Wallet className="h-6 w-6 text-green-600" />
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <Progress value={100} className="h-2" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Monthly Income Card */}
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Pemasukan Bulan Ini
+                      </p>
+                      <h2 className="text-2xl font-bold">
+                        {parseFloat(monthlyIncome) > 0 
+                          ? `Rp ${parseFloat(monthlyIncome).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          : 'Rp 0,00'}
+                      </h2>
+                    </div>
+                    <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                      <TrendingUp className="h-6 w-6 text-blue-600" />
+                    </div>
+                  </div>
+                  <div className="mt-4 flex items-center text-sm">
+                    <ArrowUpRight className="mr-1 h-4 w-4 text-green-500" />
+                    <span className="text-green-500 font-medium">+22%</span>
+                    <span className="text-muted-foreground ml-2">dibanding bulan lalu</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Monthly Expense Card */}
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Pengeluaran Bulan Ini
+                      </p>
+                      <h2 className="text-2xl font-bold">
+                        {parseFloat(monthlyExpense) > 0 
+                          ? `Rp ${parseFloat(monthlyExpense).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          : 'Rp 0,00'}
+                      </h2>
+                    </div>
+                    <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
+                      <TrendingDown className="h-6 w-6 text-red-600" />
+                    </div>
+                  </div>
+                  <div className="mt-4 flex items-center text-sm">
+                    <ArrowDownLeft className="mr-1 h-4 w-4 text-red-500" />
+                    <span className="text-red-500 font-medium">+12%</span>
+                    <span className="text-muted-foreground ml-2">dibanding bulan lalu</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Business Count Card */}
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Jumlah Bisnis
+                      </p>
+                      <h2 className="text-2xl font-bold">
+                        {businessVaults.length}
+                      </h2>
+                    </div>
+                    <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
+                      <Building2 className="h-6 w-6 text-purple-600" />
+                    </div>
+                  </div>
+                  <div className="mt-4 flex items-center text-sm">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={onCreateNewBusiness}
+                      className="p-0 h-8 text-purple-600 hover:text-purple-800 hover:bg-purple-50"
+                    >
+                      <PlusCircle className="mr-1 h-4 w-4" />
+                      Tambah Bisnis Baru
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Business Vaults */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Brankas Bisnis Aktif</CardTitle>
-                  <CardDescription>
-                    {businessVaults.length} bisnis terdaftar
-                  </CardDescription>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <CardTitle>Brankas Bisnis Aktif</CardTitle>
+                      <CardDescription>
+                        {businessVaults.length} bisnis terdaftar
+                      </CardDescription>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={onCreateNewBusiness}
+                      className="tour-create-business"
+                    >
+                      <PlusCircle className="h-4 w-4 mr-2" />
+                      Baru
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   {businessVaults.length === 0 ? (
@@ -512,10 +534,10 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
                   ) : (
                     <div className="space-y-4">
                       {businessVaults.map((vault) => (
-                        <div key={vault.address} className="flex items-center justify-between p-4 border rounded-lg tour-business-card">
-                          <div className="flex items-center space-x-3">
-                            <div className="p-2 bg-blue-100 rounded-full">
-                              <Building2 className="h-4 w-4 text-blue-600" />
+                        <div key={vault.address} className="flex items-center justify-between p-4 border rounded-lg tour-business-card hover:bg-gray-50 cursor-pointer">
+                          <div className="flex items-center space-x-4">
+                            <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                              <Building2 className="h-6 w-6 text-blue-600" />
                             </div>
                             <div>
                               <p className="font-medium">{vault.name}</p>
@@ -525,10 +547,10 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
                           <div className="text-right">
                             <p className="font-semibold">
                               {parseFloat(vault.tokenBalance) > 0 
-                                ? `Rp ${parseFloat(vault.tokenBalance).toLocaleString()} IDRT` 
+                                ? `Rp ${parseFloat(vault.tokenBalance).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
                                 : parseFloat(vault.balance) > 0 
-                                ? `${parseFloat(vault.balance).toLocaleString()} ETH` 
-                                : 'Rp 0'}
+                                ? `${parseFloat(vault.balance).toLocaleString('id-ID', { minimumFractionDigits: 6, maximumFractionDigits: 6 })} ETH` 
+                                : 'Rp 0,00'}
                             </p>
                             <p className="text-sm text-gray-600">{vault.transactions} transaksi</p>
                           </div>
@@ -542,10 +564,21 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
               {/* Recent Transactions */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Transaksi Terbaru</CardTitle>
-                  <CardDescription>
-                    Aktivitas terkini dari semua bisnis
-                  </CardDescription>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <CardTitle>Transaksi Terbaru</CardTitle>
+                      <CardDescription>
+                        Aktivitas terkini dari semua bisnis
+                      </CardDescription>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => setActiveTab('transactions')}
+                    >
+                      Lihat Semua
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   {recentTransactions.length === 0 ? (
@@ -558,19 +591,50 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
                   ) : (
                     <div className="space-y-4">
                       {recentTransactions.map((tx) => (
-                        <div key={tx.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div 
+                          key={tx.id} 
+                          className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                          onClick={() => {
+                            // Convert Transaction to BusinessTransaction
+                            const btx: BusinessTransaction = {
+                              id: tx.id,
+                              timestamp: new Date(tx.timestamp).getTime() / 1000,
+                              isIncome: tx.type === 'deposit',
+                              category: tx.category || (tx.type === 'deposit' ? 'Pendapatan' : 'Pengeluaran'),
+                              amount: tx.amount,
+                              from: tx.from,
+                              to: tx.to,
+                              txHash: tx.hash,
+                              status: tx.status,
+                              chainId: tx.chainId,
+                              isToken: tx.currency === 'IDRT',
+                              tokenSymbol: tx.currency === 'IDRT' ? 'IDRT' : 'ETH',
+                              description: tx.description
+                            };
+                            setSelectedTransaction(btx);
+                          }}
+                        >
                           <div className="flex items-center space-x-3">
-                            {getTransactionIcon(tx.type)}
+                            <div className={`h-10 w-10 rounded-full flex items-center justify-center ${tx.type === 'deposit' ? 'bg-green-100' : 'bg-red-100'}`}>
+                              {tx.type === 'deposit' 
+                                ? <ArrowDownLeft className="h-5 w-5 text-green-600" /> 
+                                : <ArrowUpRight className="h-5 w-5 text-red-600" />}
+                            </div>
                             <div>
-                              <p className="font-medium capitalize">{tx.type}</p>
-                              <p className="text-sm text-gray-600">{tx.chainName}</p>
+                              <p className="font-medium">
+                                {tx.type === 'deposit' ? 'Pemasukan' : tx.type === 'withdraw' ? 'Pengeluaran' : 'Transfer'}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                {new Date(tx.timestamp).toLocaleDateString('id-ID')} • {tx.category || 'Umum'}
+                              </p>
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="font-semibold">
+                            <p className={`font-semibold ${tx.type === 'deposit' ? 'text-green-600' : 'text-red-600'}`}>
+                              {tx.type === 'deposit' ? '+' : '-'}
                               {tx.currency === 'IDRT' 
-                                ? `Rp ${parseFloat(tx.amount).toLocaleString()} ${tx.currency}`
-                                : `${parseFloat(tx.amount).toLocaleString()} ${tx.currency}`}
+                                ? `Rp ${parseFloat(tx.amount).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                : `${parseFloat(tx.amount).toLocaleString('id-ID', { minimumFractionDigits: 6, maximumFractionDigits: 6 })} ${tx.currency}`}
                             </p>
                             {getStatusBadge(tx.status)}
                           </div>
@@ -665,72 +729,138 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
                 <div>
                   <CardTitle>Riwayat Transaksi</CardTitle>
                   <CardDescription>
-                    Semua transaksi dari seluruh bisnis dan jaringan
+                    Semua transaksi bisnis Anda tercatat secara permanen di blockchain
                   </CardDescription>
                 </div>
-                <Button variant="outline" size="sm" onClick={loadBusinessData} disabled={refreshing}>
-                  <Download className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-                  Refresh Data
-                </Button>
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <input
+                      type="text"
+                      placeholder="Cari transaksi..."
+                      className="pl-8 h-9 w-[180px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    />
+                  </div>
+                  <Button variant="outline" size="sm" onClick={loadBusinessData} disabled={refreshing}>
+                    <Download className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {allTransactions.length === 0 ? (
                   <div className="text-center py-12">
-                    <Activity className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                    <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">
                       Belum Ada Transaksi
                     </h3>
                     <p className="text-gray-500 mb-6">
                       Transaksi akan muncul di sini setelah Anda melakukan aktivitas bisnis
                     </p>
+                    <p className="text-gray-500 text-sm">
+                      Setiap transaksi bisnis Anda akan tercatat secara permanen di blockchain
+                    </p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    {allTransactions.map((tx) => (
-                      <div key={tx.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex items-center space-x-4">
-                          {getTransactionIcon(tx.type)}
-                          <div>
-                            <p className="font-medium capitalize">{tx.type}</p>
-                            <p className="text-sm text-gray-600">
-                              {tx.timestamp} • {tx.chainName}
-                            </p>
-                            {tx.description && (
-                              <p className="text-sm text-gray-700">{tx.description}</p>
-                            )}
-                            {tx.category && (
-                              <Badge variant="outline" className="mt-1 text-xs">
-                                {tx.category}
+                  <div className="overflow-hidden rounded-lg border">
+                    <div className="flex items-center justify-between bg-gray-50 px-4 py-3 text-sm font-medium">
+                      <div className="w-1/4">Tanggal & Waktu</div>
+                      <div className="w-1/4">Jenis & Kategori</div>
+                      <div className="w-1/4">Jumlah</div>
+                      <div className="w-1/4 text-right">Status</div>
+                    </div>
+                    <div className="divide-y">
+                      {allTransactions.map((tx) => (
+                        <div 
+                          key={tx.id} 
+                          className="flex items-center justify-between p-4 hover:bg-gray-50 cursor-pointer"
+                          onClick={() => {
+                            // Convert Transaction to BusinessTransaction
+                            const btx: BusinessTransaction = {
+                              id: tx.id,
+                              timestamp: new Date(tx.timestamp).getTime() / 1000,
+                              isIncome: tx.type === 'deposit',
+                              category: tx.category || (tx.type === 'deposit' ? 'Pendapatan' : 'Pengeluaran'),
+                              amount: tx.amount,
+                              from: tx.from,
+                              to: tx.to,
+                              txHash: tx.hash,
+                              status: tx.status,
+                              chainId: tx.chainId,
+                              isToken: tx.currency === 'IDRT',
+                              tokenSymbol: tx.currency === 'IDRT' ? 'IDRT' : 'ETH',
+                              description: tx.description
+                            };
+                            setSelectedTransaction(btx);
+                          }}
+                        >
+                          <div className="w-1/4">
+                            <div className="font-medium">
+                              {new Date(tx.timestamp).toLocaleDateString('id-ID')}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {new Date(tx.timestamp).toLocaleTimeString('id-ID')}
+                            </div>
+                          </div>
+                          <div className="w-1/4">
+                            <div className="flex items-center">
+                              <Badge className={tx.type === 'deposit' 
+                                ? "bg-green-100 text-green-800 mr-2" 
+                                : "bg-red-100 text-red-800 mr-2"}>
+                                {tx.type === 'deposit' ? 'Masuk' : 'Keluar'}
                               </Badge>
+                            </div>
+                            {tx.category && (
+                              <div className="text-sm text-gray-600 mt-1">
+                                {tx.category}
+                              </div>
+                            )}
+                          </div>
+                          <div className="w-1/4">
+                            <div className={`font-semibold ${tx.type === 'deposit' ? 'text-green-600' : 'text-red-600'}`}>
+                              {tx.type === 'deposit' ? '+' : '-'}
+                              {tx.currency === 'IDRT' 
+                                ? `Rp ${parseFloat(tx.amount).toLocaleString()}`
+                                : `${parseFloat(tx.amount).toLocaleString()} ${tx.currency}`}
+                            </div>
+                          </div>
+                          <div className="w-1/4 text-right">
+                            {getStatusBadge(tx.status)}
+                            {tx.hash && (
+                              <a 
+                                href={`https://sepolia.etherscan.io/tx/${tx.hash}`} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-600 hover:underline flex items-center justify-end mt-1"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <span>Lihat di Explorer</span>
+                                <ArrowUpRight className="ml-1 h-3 w-3" />
+                              </a>
                             )}
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className={`font-semibold ${tx.type === 'deposit' ? 'text-green-600' : 'text-red-600'}`}>
-                            {tx.type === 'deposit' ? '+' : '-'}
-                            {tx.currency === 'IDRT' 
-                              ? `Rp ${parseFloat(tx.amount).toLocaleString()}`
-                              : `${parseFloat(tx.amount).toLocaleString()} ${tx.currency}`}
-                          </p>
-                          {getStatusBadge(tx.status)}
-                          {tx.hash && (
-                            <a 
-                              href={`https://sepolia.etherscan.io/tx/${tx.hash}`} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-xs text-blue-600 hover:underline flex items-center justify-end mt-1"
-                            >
-                              <span>View on Etherscan</span>
-                              <ArrowUpRight className="ml-1 h-3 w-3" />
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 )}
               </CardContent>
             </Card>
+            
+            {/* Invoice Dialog */}
+            {selectedTransaction && (
+              <Dialog open={!!selectedTransaction} onOpenChange={(open) => !open && setSelectedTransaction(null)}>
+                <DialogContent className="max-w-4xl p-0" onInteractOutside={(e) => e.preventDefault()}>
+                  <div ref={invoiceRef}>
+                    <TransactionInvoice 
+                      transaction={selectedTransaction} 
+                      onClose={() => setSelectedTransaction(null)}
+                      onPrint={handlePrint}
+                    />
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
           </TabsContent>
 
           {/* Reports Tab */}
@@ -739,6 +869,15 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
           </TabsContent>
         </Tabs>
       </div>
+      
+      {/* Payment Modal */}
+      {showPaymentModal && selectedVaultForPayment && (
+        <BusinessPayment
+          onClose={() => setShowPaymentModal(false)}
+          vaultAddress={selectedVaultForPayment.address}
+          businessName={selectedVaultForPayment.name}
+        />
+      )}
     </div>
   );
 };

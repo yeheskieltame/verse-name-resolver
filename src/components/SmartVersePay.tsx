@@ -8,15 +8,19 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { QrCode, Download, Scan, Copy, Wallet, DollarSign, AlertCircle, CheckCircle, Smartphone } from 'lucide-react';
+import { QrCode, Download, Scan, Copy, Wallet, DollarSign, AlertCircle, CheckCircle, Smartphone, Building } from 'lucide-react';
 import { useAccount, useChainId } from 'wagmi';
 import { QRCodeSVG } from 'qrcode.react';
 import { crossChainNameService, CrossChainNameService } from "@/services/crossChainNameService";
 import { QRScanner } from "./QRScanner";
+import { QRBusinessPayment } from "./QRBusinessPayment";
 
 export const SmartVersePay = () => {
   const { address: userAddress, isConnected } = useAccount();
   const chainId = useChainId();
+  
+  // State for main tabs
+  const [mainTab, setMainTab] = useState<'personal' | 'business'>('personal');
   
   // State untuk Static QR
   const [userNames, setUserNames] = useState<string[]>([]);
@@ -190,294 +194,252 @@ export const SmartVersePay = () => {
     );
   }
 
-  if (userNames.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <QrCode className="w-5 h-5" />
-            SmartVerse Pay
-          </CardTitle>
-          <CardDescription>
-            Accept payments easily with QR codes using your .sw name
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              You need to register a .sw name first to use SmartVerse Pay
-            </AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
-    );
-  }
-
+  // Main component content for connected users
   return (
     <div className="space-y-6">
-      {/* Header Info */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <QrCode className="w-5 h-5" />
-            SmartVerse Pay
-            <Badge variant="outline" className="ml-auto">
-              {networkInfo.name}
-            </Badge>
-          </CardTitle>
-          <CardDescription>
-            Accept payments easily with QR codes. Your customers can scan and pay instantly!
-          </CardDescription>
-        </CardHeader>
-      </Card>
-
-      {/* QR Payment Tabs */}
-      <Tabs defaultValue="static" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="static" className="flex items-center gap-2">
+      {/* Main Tabs: Personal vs Business */}
+      <Tabs value={mainTab} onValueChange={(value) => setMainTab(value as 'personal' | 'business')} className="w-full">
+        <TabsList className="grid w-full grid-cols-2 mb-6">
+          <TabsTrigger value="personal" className="flex items-center gap-2">
             <Wallet className="w-4 h-4" />
-            Receive
+            Personal Pay
           </TabsTrigger>
-          <TabsTrigger value="dynamic" className="flex items-center gap-2">
-            <DollarSign className="w-4 h-4" />
-            Request
-          </TabsTrigger>
-          <TabsTrigger value="scan" className="flex items-center gap-2">
-            <Scan className="w-4 h-4" />
-            Scan & Pay
+          <TabsTrigger value="business" className="flex items-center gap-2">
+            <Building className="w-4 h-4" />
+            Business Pay
           </TabsTrigger>
         </TabsList>
 
-        {/* Static QR Tab */}
-        <TabsContent value="static" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">📱 Static Payment QR</CardTitle>
-              <CardDescription>
-                Generate a permanent QR code. Customers scan it and enter the amount themselves.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Name Selection */}
-              <div className="space-y-2">
-                <Label>Select Your Name</Label>
-                <Select value={selectedName} onValueChange={setSelectedName}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a name" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {userNames.map((name) => (
-                      <SelectItem key={name} value={name}>
-                        {name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* QR Code Display */}
-              {staticQRData && (
-                <div className="text-center space-y-4">
-                  <div className="bg-white border border-slate-200 shadow-sm p-6 rounded-xl inline-block">
-                    <QRCodeSVG 
-                      value={staticQRData} 
-                      size={256}
-                      level="M"
-                      includeMargin={true}
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-slate-600">Your Payment Address:</p>
-                    <code className="text-xs bg-slate-50 border border-slate-200 text-slate-700 p-3 rounded-lg block break-all">
-                      {staticQRData}
-                    </code>
-                  </div>
-
-                  <div className="flex gap-2 justify-center">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => copyToClipboard(staticQRData, "Payment address")}
-                    >
-                      <Copy className="w-4 h-4 mr-2" />
-                      Copy Address
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => downloadQR(staticQRData, `${selectedName}-static-qr`)}
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Download QR
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {/* Usage Instructions */}
-              <Alert>
-                <Smartphone className="h-4 w-4" />
-                <AlertDescription>
-                  <strong>How to use:</strong> Display this QR code to customers. They scan it with their wallet app, enter the amount, and send the payment to your {selectedName} address.
-                </AlertDescription>
-              </Alert>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Dynamic QR Tab */}
-        <TabsContent value="dynamic" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">💰 Dynamic Payment QR</CardTitle>
-              <CardDescription>
-                Create a QR code with a specific amount. Customers just scan and confirm the payment.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Payment Form */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="recipient">Recipient (.sw name or address)</Label>
-                  <Input
-                    id="recipient"
-                    placeholder="alice.sw or 0x123..."
-                    value={dynamicRecipient}
-                    onChange={(e) => setDynamicRecipient(e.target.value)}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="amount">Amount ({networkInfo.symbol})</Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    step="0.0001"
-                    placeholder="0.1"
-                    value={dynamicAmount}
-                    onChange={(e) => setDynamicAmount(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <Button 
-                onClick={generateDynamicQR} 
-                disabled={isGeneratingDynamic || !dynamicRecipient || !dynamicAmount}
-                className="w-full"
-              >
-                {isGeneratingDynamic ? (
-                  <>
-                    <QrCode className="w-4 h-4 mr-2 animate-spin" />
-                    Generating QR...
-                  </>
-                ) : (
-                  <>
-                    <QrCode className="w-4 h-4 mr-2" />
+        {/* Personal Pay Tab Content */}
+        <TabsContent value="personal" className="space-y-6">
+          {userNames.length === 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <QrCode className="w-5 h-5" />
+                  Personal QR Payments
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    You need to register a .sw name to use SmartVerse Pay. Register a name first.
+                  </AlertDescription>
+                </Alert>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Generate QR Code */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <QrCode className="w-5 h-5" />
                     Generate Payment QR
-                  </>
-                )}
-              </Button>
+                  </CardTitle>
+                  <CardDescription>
+                    Create a QR code for receiving payments
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Tabs defaultValue="static" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 mb-4">
+                      <TabsTrigger value="static">Static QR</TabsTrigger>
+                      <TabsTrigger value="dynamic">Payment Request</TabsTrigger>
+                    </TabsList>
 
-              {/* Dynamic QR Display */}
-              {dynamicQRData && (
-                <div className="text-center space-y-4">
-                  <div className="bg-white border border-slate-200 shadow-sm p-6 rounded-xl inline-block">
-                    <QRCodeSVG 
-                      value={dynamicQRData} 
-                      size={256}
-                      level="M"
-                      includeMargin={true}
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="text-sm font-medium text-green-600">
-                      ✅ Payment QR Generated!
-                    </div>
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                      <p className="text-sm text-green-700"><strong>Amount:</strong> {dynamicAmount} {networkInfo.symbol}</p>
-                      <p className="text-sm text-green-700"><strong>To:</strong> {dynamicRecipient}</p>
-                      <p className="text-sm text-green-700"><strong>Network:</strong> {networkInfo.name}</p>
-                    </div>
-                  </div>
+                    {/* Static QR Tab */}
+                    <TabsContent value="static" className="space-y-4">
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="name">Your .sw Name</Label>
+                          <Select value={selectedName} onValueChange={setSelectedName}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a name" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {userNames.map((name) => (
+                                <SelectItem key={name} value={name}>
+                                  {name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-                  <div className="flex gap-2 justify-center">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => copyToClipboard(dynamicQRData, "Payment URL")}
-                    >
-                      <Copy className="w-4 h-4 mr-2" />
-                      Copy URL
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => downloadQR(dynamicQRData, `payment-${dynamicAmount}-${networkInfo.symbol}`)}
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Download QR
-                    </Button>
-                  </div>
-                </div>
-              )}
+                        {staticQRData && (
+                          <div className="flex flex-col items-center p-4 border rounded-lg">
+                            <div className="mb-3">
+                              <Badge variant="outline" className="bg-purple-50 text-purple-700 hover:bg-purple-100">
+                                Static Payment QR
+                              </Badge>
+                            </div>
+                            <QRCodeSVG
+                              value={staticQRData}
+                              size={180}
+                              level="H"
+                              includeMargin={true}
+                              className="mb-3"
+                            />
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => copyToClipboard(staticQRData, 'QR data')}
+                              >
+                                <Copy className="h-3.5 w-3.5 mr-1.5" />
+                                Copy
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => downloadQR(staticQRData, `${selectedName}-static-qr`)}
+                              >
+                                <Download className="h-3.5 w-3.5 mr-1.5" />
+                                Download
+                              </Button>
+                            </div>
+                          </div>
+                        )}
 
-              {/* Usage Instructions */}
-              <Alert>
-                <CheckCircle className="h-4 w-4" />
-                <AlertDescription>
-                  <strong>How to use:</strong> Show this QR code to the customer. When they scan it, their wallet will auto-fill the recipient, amount, and network. They just need to confirm the transaction!
-                </AlertDescription>
-              </Alert>
-            </CardContent>
-          </Card>
+                        <div className="text-sm text-gray-600 italic">
+                          <AlertCircle className="h-3.5 w-3.5 inline mr-1" />
+                          Static QR only contains your address. The sender will need to input amount details.
+                        </div>
+                      </div>
+                    </TabsContent>
+
+                    {/* Dynamic QR Tab */}
+                    <TabsContent value="dynamic" className="space-y-4">
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="recipient">Recipient Name</Label>
+                          <Select value={dynamicRecipient} onValueChange={setDynamicRecipient}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select your name" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {userNames.map((name) => (
+                                <SelectItem key={name} value={name}>
+                                  {name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <Label htmlFor="amount">Amount ({networkInfo?.symbol || 'ETH'})</Label>
+                          <Input
+                            id="amount"
+                            placeholder="0.01"
+                            value={dynamicAmount}
+                            onChange={(e) => setDynamicAmount(e.target.value)}
+                          />
+                        </div>
+
+                        <Button
+                          className="w-full"
+                          onClick={generateDynamicQR}
+                          disabled={isGeneratingDynamic || !dynamicRecipient || !dynamicAmount}
+                        >
+                          {isGeneratingDynamic ? (
+                            <>
+                              <Smartphone className="mr-2 h-4 w-4 animate-pulse" />
+                              Generating...
+                            </>
+                          ) : (
+                            <>
+                              <QrCode className="mr-2 h-4 w-4" />
+                              Generate Payment QR
+                            </>
+                          )}
+                        </Button>
+
+                        {dynamicQRData && (
+                          <div className="flex flex-col items-center p-4 border rounded-lg">
+                            <div className="mb-3">
+                              <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-100">
+                                Payment Request QR
+                              </Badge>
+                            </div>
+                            <QRCodeSVG
+                              value={dynamicQRData}
+                              size={180}
+                              level="H"
+                              includeMargin={true}
+                              className="mb-3"
+                            />
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => copyToClipboard(dynamicQRData, 'QR data')}
+                              >
+                                <Copy className="h-3.5 w-3.5 mr-1.5" />
+                                Copy
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => downloadQR(dynamicQRData, `${dynamicRecipient}-payment-qr`)}
+                              >
+                                <Download className="h-3.5 w-3.5 mr-1.5" />
+                                Download
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="text-sm text-gray-600 italic">
+                          <AlertCircle className="h-3.5 w-3.5 inline mr-1" />
+                          Payment Request QR includes recipient and amount. Sender just needs to scan and confirm.
+                        </div>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
+
+              {/* Scan QR Code */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Scan className="w-5 h-5" />
+                    Scan Payment QR
+                  </CardTitle>
+                  <CardDescription>
+                    Scan a QR code to make a payment
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <QRScanner />
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </TabsContent>
 
-        {/* QR Scanner Tab */}
-        <TabsContent value="scan" className="space-y-4">
-          <QRScanner />
+        {/* Business Pay Tab Content */}
+        <TabsContent value="business" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building className="w-5 h-5" />
+                Business QR Payments
+              </CardTitle>
+              <CardDescription>
+                Accept and process business payments via QR codes
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {/* Business QR Payment Component */}
+              <QRBusinessPayment />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
-
-      {/* Info Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">📋 How SmartVerse Pay Works</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-            <div>
-              <h4 className="font-medium mb-2">🔄 Receive (Static QR)</h4>
-              <ul className="space-y-1 text-gray-600 dark:text-gray-400">
-                <li>• One QR code for all payments</li>
-                <li>• Customer enters amount manually</li>
-                <li>• Perfect for stores, services</li>
-                <li>• Works with any wallet app</li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-medium mb-2">💰 Request (Dynamic QR)</h4>
-              <ul className="space-y-1 text-gray-600 dark:text-gray-400">
-                <li>• Specific amount pre-filled</li>
-                <li>• Customer just confirms payment</li>
-                <li>• Reduces payment errors</li>
-                <li>• Perfect for invoices, bills</li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-medium mb-2">📷 Scan & Pay</h4>
-              <ul className="space-y-1 text-gray-600 dark:text-gray-400">
-                <li>• Scan any payment QR code</li>
-                <li>• Execute payments directly</li>
-                <li>• No external wallet needed</li>
-                <li>• Built-in camera scanner</li>
-              </ul>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };
