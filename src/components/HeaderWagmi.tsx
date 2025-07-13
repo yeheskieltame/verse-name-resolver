@@ -1,7 +1,8 @@
-
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { toast } from "@/hooks/use-toast";
-import { Globe, Network, Sparkles } from 'lucide-react';
+import { Globe, Network, Sparkles, HelpCircle } from 'lucide-react';
+import { Button } from './ui/button';
+import { useTourManager } from '@/hooks/useTourManager';
 import { 
   SUPPORTED_NETWORKS,
   getNetworkConfig 
@@ -11,6 +12,7 @@ import { useAccount, useChainId } from 'wagmi';
 export const HeaderWagmi = () => {
   const { isConnected } = useAccount();
   const chainId = useChainId();
+  const { startTour } = useTourManager();
 
   const currentNetwork = chainId ? getNetworkConfig(chainId) : null;
 
@@ -34,10 +36,21 @@ export const HeaderWagmi = () => {
       
       {/* Controls */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 sm:flex-shrink-0">
+        {/* Help Tour Button */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => startTour('general')}
+          className="flex items-center gap-2 self-center tour-help-button"
+        >
+          <HelpCircle className="w-4 h-4" />
+          <span className="hidden sm:inline">Panduan</span>
+        </Button>
+
         {isConnected ? (
           <>
             {/* RainbowKit Connect Button */}
-            <div className="flex justify-center sm:justify-end connect-button-wrapper">
+            <div className="flex justify-center sm:justify-end wallet-connect-button">
               <ConnectButton 
                 showBalance={true}
                 chainStatus="icon"
@@ -56,7 +69,7 @@ export const HeaderWagmi = () => {
             )}
             
             {/* RainbowKit Connect Button */}
-            <div className="flex justify-center sm:justify-end connect-button-wrapper">
+            <div className="flex justify-center sm:justify-end wallet-connect-button">
               <ConnectButton 
                 showBalance={false}
                 chainStatus="icon"

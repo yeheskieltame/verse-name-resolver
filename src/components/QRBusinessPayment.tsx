@@ -558,7 +558,7 @@ const QRBusinessPayment: React.FC = () => {
       
       {/* Confirmation Dialog */}
       <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
-        <DialogContent>
+        <DialogContent className="bg-white border border-gray-200 shadow-xl">
           <DialogHeader>
             <DialogTitle>Konfirmasi Pembayaran</DialogTitle>
             <DialogDescription>

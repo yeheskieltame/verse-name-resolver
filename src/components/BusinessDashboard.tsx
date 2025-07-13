@@ -5,6 +5,8 @@ import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Progress } from './ui/progress';
 import { Dialog, DialogContent } from './ui/dialog';
+import OnboardingTour from './OnboardingTour';
+import { useTourManager } from '../hooks/useTourManager';
 import { 
   Building2, 
   Wallet, 
@@ -25,14 +27,16 @@ import {
   Filter,
   FileText
 } from 'lucide-react';
-import { useAccount, useChainId } from 'wagmi';
-import { BUSINESS_CONTRACTS, getContractAddress, isSupportedChain, BusinessVault_ABI } from '../contracts/BusinessContracts';
+import { useAccount, useChainId, useReadContract } from 'wagmi';
+import { BUSINESS_CONTRACTS, getContractAddress, isSupportedChain, BusinessVault_ABI, MockIDRT_ABI } from '../contracts/BusinessContracts';
 import { SmartVerseBusinessService, BusinessTransaction } from '../services/smartVerseBusiness';
 import FinancialReport from './FinancialReport';
 import BusinessPayment from './BusinessPayment';
+import BusinessActions from './BusinessActions';
 import TransactionInvoice from './TransactionInvoice';
 import { useReactToPrint } from 'react-to-print';
 import { formatAddress, formatTimestamp, formatTimeAgo, formatCurrency, getTransactionBadgeColor } from '../utils/formatters';
+import { formatUnits, type Address } from 'viem';
 
 interface BusinessDashboardProps {
   onCreateNewBusiness?: () => void;
@@ -71,14 +75,48 @@ interface Transaction {
 const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusiness, onViewVault }) => {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
+  const isMountedRef = useRef(true);
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+  
+  // Tour manager
+  const {
+    showTour,
+    tourType,
+    tourSettings,
+    startTour,
+    completeTour,
+    setBusinessUser,
+    shouldShowBusinessTourForNewFeatures,
+    closeTour
+  } = useTourManager();
   
   const [businessVaults, setBusinessVaults] = useState<BusinessVault[]>([]);
+  
+  // Get current network IDRT contract address
+  const currentNetwork = Object.values(BUSINESS_CONTRACTS).find(n => n.chainId === chainId);
+  const idrtContractAddress = currentNetwork?.contracts?.MockIDRT as Address;
+  
+  // Read IDRT balance for the first business vault
+  const firstVaultAddress = businessVaults.length > 0 ? businessVaults[0].address : null;
+  const { data: idrtBalance, refetch: refetchIdrtBalance } = useReadContract({
+    address: idrtContractAddress,
+    abi: MockIDRT_ABI,
+    functionName: 'balanceOf',
+    args: firstVaultAddress ? [firstVaultAddress as Address] : undefined,
+  });
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [totalBalance, setTotalBalance] = useState('0');
   const [monthlyIncome, setMonthlyIncome] = useState('0');
   const [monthlyExpense, setMonthlyExpense] = useState('0');
   const [loading, setLoading] = useState(true);
+  const [isDataLoading, setIsDataLoading] = useState(false);
   const [vaultAddress, setVaultAddress] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [businessService] = useState(new SmartVerseBusinessService());
@@ -119,21 +157,50 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
 
   // Load real data from blockchain
   useEffect(() => {
+    if (!isMountedRef.current) return;
+    
     try {
-      if (isConnected && address) {
+      if (isConnected && address && !isDataLoading) {
         loadBusinessData();
-      } else {
+        // Mark user as business user when they access business dashboard
+        setBusinessUser(true);
+      } else if (!isConnected && isMountedRef.current) {
         // Ensure loading is set to false even if we don't proceed
         setLoading(false);
+        setIsDataLoading(false);
       }
     } catch (e) {
       console.error('Error in dashboard useEffect:', e);
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+        setIsDataLoading(false);
+      }
     }
   }, [isConnected, address, chainId]);
 
+  // Check for new business features tour
+  useEffect(() => {
+    if (!isMountedRef.current) return;
+    
+    if (isConnected && shouldShowBusinessTourForNewFeatures()) {
+      const timeoutId = setTimeout(() => {
+        if (isMountedRef.current) {
+          startTour('business');
+        }
+      }, 2000);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isConnected]);
+
   const loadBusinessData = async () => {
     try {
+      // Prevent multiple simultaneous calls
+      if (isDataLoading || !isMountedRef.current) {
+        return;
+      }
+      
+      setIsDataLoading(true);
       setLoading(true);
       setRefreshing(true);
       
@@ -142,8 +209,11 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
       }
 
       if (!address) {
-        setLoading(false);
-        setRefreshing(false);
+        if (isMountedRef.current) {
+          setLoading(false);
+          setRefreshing(false);
+          setIsDataLoading(false);
+        }
         return;
       }
 
@@ -231,14 +301,37 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
         console.error('Error getting user vault:', error);
       }
       
-      setLoading(false);
-      setRefreshing(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+        setIsDataLoading(false);
+      }
     } catch (error) {
       console.error('Error loading business data:', error);
-      setLoading(false);
-      setRefreshing(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+        setIsDataLoading(false);
+      }
     }
   };
+
+  // Update IDRT balance when it changes
+  useEffect(() => {
+    if (!isMountedRef.current) return;
+    
+    if (idrtBalance && businessVaults.length > 0) {
+      const formattedBalance = formatUnits(idrtBalance, 18);
+      setBusinessVaults(prevVaults => 
+        prevVaults.map((vault, index) => 
+          index === 0 
+            ? { ...vault, tokenBalance: formattedBalance }
+            : vault
+        )
+      );
+      setTotalBalance(formattedBalance);
+    }
+  }, [idrtBalance, businessVaults.length]);
 
   const handleCreatePayment = (vault: BusinessVault) => {
     setSelectedVaultForPayment(vault);
@@ -373,6 +466,32 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
           </Card>
         )}
 
+        {/* Header with Tour Button */}
+        {businessVaults.length > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Business Dashboard</h1>
+              <p className="text-gray-600 mt-1">Kelola bisnis Anda dengan mudah</p>
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => startTour('business')}
+                className="tour-help-button"
+              >
+                <QrCode className="w-4 h-4 mr-2" />
+                Panduan Fitur
+              </Button>
+              {shouldShowBusinessTourForNewFeatures() && (
+                <Badge variant="default" className="bg-gradient-to-r from-purple-500 to-pink-500">
+                  Fitur Baru!
+                </Badge>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Dashboard content */}
         <Tabs 
           defaultValue="overview" 
@@ -382,122 +501,147 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
         >
           <TabsList className="grid grid-cols-4 mb-4 tour-tabs">
             <TabsTrigger value="overview" className="tour-overview">Ringkasan</TabsTrigger>
-            <TabsTrigger value="vaults" className="tour-vaults">Bisnis</TabsTrigger>
+            <TabsTrigger value="actions" className="tour-actions">Aksi</TabsTrigger>
             <TabsTrigger value="transactions" className="tour-transactions">Transaksi</TabsTrigger>
             <TabsTrigger value="reports" className="tour-reports">Laporan</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Total Balance Card */}
               <Card>
-                <CardContent className="p-6">
+                <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">
-                        Total Saldo
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-muted-foreground truncate">
+                        Total Saldo IDRT
                       </p>
-                      <h2 className="text-2xl font-bold">
-                        {parseFloat(totalBalance) > 0 
-                          ? `Rp ${parseFloat(totalBalance).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                      <h2 className="text-xl sm:text-2xl font-bold truncate">
+                        {businessVaults.length > 0 && businessVaults[0].tokenBalance
+                          ? `Rp ${parseFloat(businessVaults[0].tokenBalance).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                           : 'Rp 0,00'}
                       </h2>
+                      <p className="text-xs text-muted-foreground mt-1 truncate">
+                        Indonesian Rupiah Token
+                      </p>
                     </div>
-                    <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-                      <Wallet className="h-6 w-6 text-green-600" />
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 ml-3">
+                      <Wallet className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
                     </div>
                   </div>
                   <div className="mt-4">
-                    <Progress value={100} className="h-2" />
+                    <Progress value={businessVaults.length > 0 ? 75 : 0} className="h-2" />
                   </div>
                 </CardContent>
               </Card>
 
               {/* Monthly Income Card */}
               <Card>
-                <CardContent className="p-6">
+                <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-muted-foreground truncate">
                         Pemasukan Bulan Ini
                       </p>
-                      <h2 className="text-2xl font-bold">
+                      <h2 className="text-xl sm:text-2xl font-bold truncate">
                         {parseFloat(monthlyIncome) > 0 
                           ? `Rp ${parseFloat(monthlyIncome).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                           : 'Rp 0,00'}
                       </h2>
+                      <p className="text-xs text-muted-foreground mt-1 truncate">
+                        Token IDRT
+                      </p>
                     </div>
-                    <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-                      <TrendingUp className="h-6 w-6 text-blue-600" />
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 ml-3">
+                      <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
                     </div>
                   </div>
                   <div className="mt-4 flex items-center text-sm">
                     <ArrowUpRight className="mr-1 h-4 w-4 text-green-500" />
                     <span className="text-green-500 font-medium">+22%</span>
-                    <span className="text-muted-foreground ml-2">dibanding bulan lalu</span>
+                    <span className="text-muted-foreground ml-2 truncate">dari bulan lalu</span>
                   </div>
                 </CardContent>
               </Card>
 
               {/* Monthly Expense Card */}
               <Card>
-                <CardContent className="p-6">
+                <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-muted-foreground truncate">
                         Pengeluaran Bulan Ini
                       </p>
-                      <h2 className="text-2xl font-bold">
+                      <h2 className="text-xl sm:text-2xl font-bold truncate">
                         {parseFloat(monthlyExpense) > 0 
                           ? `Rp ${parseFloat(monthlyExpense).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                           : 'Rp 0,00'}
                       </h2>
+                      <p className="text-xs text-muted-foreground mt-1 truncate">
+                        Token IDRT
+                      </p>
                     </div>
-                    <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
-                      <TrendingDown className="h-6 w-6 text-red-600" />
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 ml-3">
+                      <TrendingDown className="h-5 w-5 sm:h-6 sm:w-6 text-red-600" />
                     </div>
                   </div>
                   <div className="mt-4 flex items-center text-sm">
                     <ArrowDownLeft className="mr-1 h-4 w-4 text-red-500" />
                     <span className="text-red-500 font-medium">+12%</span>
-                    <span className="text-muted-foreground ml-2">dibanding bulan lalu</span>
+                    <span className="text-muted-foreground ml-2 truncate">dari bulan lalu</span>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Business Count Card */}
+              {/* Business Status Card */}
               <Card>
-                <CardContent className="p-6">
+                <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">
-                        Jumlah Bisnis
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-muted-foreground truncate">
+                        Status Bisnis
                       </p>
-                      <h2 className="text-2xl font-bold">
-                        {businessVaults.length}
+                      <h2 className="text-xl sm:text-2xl font-bold truncate">
+                        {businessVaults.length > 0 ? 'Aktif' : 'Tidak Ada'}
                       </h2>
+                      <p className="text-xs text-muted-foreground mt-1 truncate">
+                        {businessVaults.length > 0 
+                          ? `${businessVaults[0].name || 'Bisnis Utama'}`
+                          : 'Buat bisnis pertama'}
+                      </p>
                     </div>
-                    <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
-                      <Building2 className="h-6 w-6 text-purple-600" />
+                    <div className={`h-10 w-10 sm:h-12 sm:w-12 rounded-full flex items-center justify-center flex-shrink-0 ml-3 ${
+                      businessVaults.length > 0 ? 'bg-purple-100' : 'bg-gray-100'
+                    }`}>
+                      <Building2 className={`h-5 w-5 sm:h-6 sm:w-6 ${
+                        businessVaults.length > 0 ? 'text-purple-600' : 'text-gray-400'
+                      }`} />
                     </div>
                   </div>
-                  <div className="mt-4 flex items-center text-sm">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={onCreateNewBusiness}
-                      className="p-0 h-8 text-purple-600 hover:text-purple-800 hover:bg-purple-50"
-                    >
-                      <PlusCircle className="mr-1 h-4 w-4" />
-                      Tambah Bisnis Baru
-                    </Button>
+                  <div className="mt-4">
+                    {businessVaults.length > 0 ? (
+                      <div className="flex items-center text-sm text-green-600">
+                        <div className="w-2 h-2 bg-green-500 rounded-full mr-2 flex-shrink-0"></div>
+                        <span className="truncate">Online & Siap Menerima</span>
+                      </div>
+                    ) : (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={onCreateNewBusiness}
+                        className="p-0 h-8 text-purple-600 hover:text-purple-800 hover:bg-purple-50 truncate"
+                      >
+                        <PlusCircle className="mr-1 h-4 w-4 flex-shrink-0" />
+                        <span className="truncate">Mulai Bisnis</span>
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
               {/* Business Vaults */}
               <Card>
                 <CardHeader>
@@ -534,25 +678,25 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
                   ) : (
                     <div className="space-y-4">
                       {businessVaults.map((vault) => (
-                        <div key={vault.address} className="flex items-center justify-between p-4 border rounded-lg tour-business-card hover:bg-gray-50 cursor-pointer">
-                          <div className="flex items-center space-x-4">
-                            <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                              <Building2 className="h-6 w-6 text-blue-600" />
+                        <div key={vault.address} className="flex items-center justify-between p-3 sm:p-4 border rounded-lg tour-business-card hover:bg-gray-50 cursor-pointer">
+                          <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
+                            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                              <Building2 className="h-4 w-4 sm:h-6 sm:w-6 text-blue-600" />
                             </div>
-                            <div>
-                              <p className="font-medium">{vault.name}</p>
-                              <p className="text-sm text-gray-600">{vault.chainName}</p>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium truncate">{vault.name}</p>
+                              <p className="text-sm text-gray-600 truncate">{vault.chainName}</p>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <p className="font-semibold">
+                          <div className="text-right flex-shrink-0 ml-3">
+                            <p className="font-semibold text-sm sm:text-base">
                               {parseFloat(vault.tokenBalance) > 0 
-                                ? `Rp ${parseFloat(vault.tokenBalance).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
-                                : parseFloat(vault.balance) > 0 
-                                ? `${parseFloat(vault.balance).toLocaleString('id-ID', { minimumFractionDigits: 6, maximumFractionDigits: 6 })} ETH` 
+                                ? `Rp ${parseFloat(vault.tokenBalance).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                                 : 'Rp 0,00'}
                             </p>
-                            <p className="text-sm text-gray-600">{vault.transactions} transaksi</p>
+                            <p className="text-xs sm:text-sm text-gray-600">
+                              IDRT Token
+                            </p>
                           </div>
                         </div>
                       ))}
@@ -593,7 +737,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
                       {recentTransactions.map((tx) => (
                         <div 
                           key={tx.id} 
-                          className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                          className="flex items-center justify-between p-3 sm:p-4 border rounded-lg hover:bg-gray-50 cursor-pointer"
                           onClick={() => {
                             // Convert Transaction to BusinessTransaction
                             const btx: BusinessTransaction = {
@@ -614,28 +758,35 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
                             setSelectedTransaction(btx);
                           }}
                         >
-                          <div className="flex items-center space-x-3">
-                            <div className={`h-10 w-10 rounded-full flex items-center justify-center ${tx.type === 'deposit' ? 'bg-green-100' : 'bg-red-100'}`}>
+                          <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+                            <div className={`h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center flex-shrink-0 ${tx.type === 'deposit' ? 'bg-green-100' : 'bg-red-100'}`}>
                               {tx.type === 'deposit' 
-                                ? <ArrowDownLeft className="h-5 w-5 text-green-600" /> 
-                                : <ArrowUpRight className="h-5 w-5 text-red-600" />}
+                                ? <ArrowDownLeft className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" /> 
+                                : <ArrowUpRight className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />}
                             </div>
-                            <div>
-                              <p className="font-medium">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-sm sm:text-base truncate">
                                 {tx.type === 'deposit' ? 'Pemasukan' : tx.type === 'withdraw' ? 'Pengeluaran' : 'Transfer'}
                               </p>
-                              <p className="text-sm text-gray-600">
+                              <p className="text-xs sm:text-sm text-gray-600 truncate">
                                 {new Date(tx.timestamp).toLocaleDateString('id-ID')} • {tx.category || 'Umum'}
                               </p>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <p className={`font-semibold ${tx.type === 'deposit' ? 'text-green-600' : 'text-red-600'}`}>
+                          <div className="text-right flex-shrink-0 ml-3">
+                            <p className={`font-semibold text-sm sm:text-base ${tx.type === 'deposit' ? 'text-green-600' : 'text-red-600'}`}>
                               {tx.type === 'deposit' ? '+' : '-'}
-                              {tx.currency === 'IDRT' 
+                              {tx.currency === 'IDRT' || !tx.currency
                                 ? `Rp ${parseFloat(tx.amount).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                                : `${parseFloat(tx.amount).toLocaleString('id-ID', { minimumFractionDigits: 6, maximumFractionDigits: 6 })} ${tx.currency}`}
+                                : tx.currency === 'ETH'
+                                ? `${parseFloat(tx.amount).toFixed(4)} ETH`
+                                : `${parseFloat(tx.amount).toFixed(4)} ${tx.currency}`}
                             </p>
+                            {tx.currency === 'ETH' && (
+                              <p className="text-xs text-gray-500">
+                                ≈ ${(parseFloat(tx.amount) * 2000).toFixed(2)}
+                              </p>
+                            )}
                             {getStatusBadge(tx.status)}
                           </div>
                         </div>
@@ -647,8 +798,8 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
             </div>
           </TabsContent>
 
-          {/* Vaults Tab */}
-          <TabsContent value="vaults" className="space-y-6">
+          {/* Actions Tab */}
+          <TabsContent value="actions" className="space-y-6">
             {businessVaults.length === 0 ? (
               <div className="text-center py-12">
                 <Building2 className="h-16 w-16 text-gray-400 mx-auto mb-4" />
@@ -656,7 +807,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
                   Belum Ada Bisnis
                 </h3>
                 <p className="text-gray-500 mb-6">
-                  Mulai perjalanan bisnis Anda dengan membuat brankas digital pertama
+                  Mulai perjalanan bisnis Anda dengan membuat vault digital pertama
                 </p>
                 <Button onClick={onCreateNewBusiness}>
                   <PlusCircle className="h-4 w-4 mr-2" />
@@ -664,61 +815,11 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
                 </Button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {businessVaults.map((vault) => (
-                  <Card key={vault.address}>
-                    <CardHeader>
-                      <CardTitle className="flex items-center justify-between">
-                        <span>{vault.name}</span>
-                        <Badge variant="outline">{vault.chainName}</Badge>
-                      </CardTitle>
-                      <CardDescription>
-                        Kategori: {vault.category}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div className="text-center">
-                          <p className="text-2xl font-bold text-blue-600">
-                            {vault.balance === '0' ? 'Rp 0' : `Rp ${parseFloat(vault.balance).toLocaleString()}`}
-                          </p>
-                          <p className="text-sm text-gray-600">Saldo saat ini</p>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-4 text-center">
-                          <div>
-                            <p className="text-lg font-semibold">{vault.transactions}</p>
-                            <p className="text-sm text-gray-600">Transaksi</p>
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold">{vault.lastActivity}</p>
-                            <p className="text-sm text-gray-600">Aktivitas terakhir</p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex gap-2">
-                          <Button 
-                            size="sm" 
-                            className="flex-1"
-                            onClick={() => onViewVault?.(vault.address, vault.name, vault.chainId)}
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            Lihat Detail
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => handleCreatePayment(vault)}
-                          >
-                            <QrCode className="h-4 w-4 mr-2" />
-                            Terima Pembayaran
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              <BusinessActions
+                vaultAddress={businessVaults[0]?.address}
+                businessName={businessVaults[0]?.name}
+                balance={businessVaults[0]?.tokenBalance || '0'}
+              />
             )}
           </TabsContent>
 
@@ -850,7 +951,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
             {/* Invoice Dialog */}
             {selectedTransaction && (
               <Dialog open={!!selectedTransaction} onOpenChange={(open) => !open && setSelectedTransaction(null)}>
-                <DialogContent className="max-w-4xl p-0" onInteractOutside={(e) => e.preventDefault()}>
+                <DialogContent className="max-w-4xl p-0 bg-white border border-gray-200 shadow-xl" onInteractOutside={(e) => e.preventDefault()}>
                   <div ref={invoiceRef}>
                     <TransactionInvoice 
                       transaction={selectedTransaction} 
@@ -878,6 +979,14 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
           businessName={selectedVaultForPayment.name}
         />
       )}
+
+      {/* Onboarding Tour */}
+      <OnboardingTour
+        isOpen={showTour}
+        onClose={() => completeTour(tourType)}
+        tourType={tourType}
+        isBusinessUser={tourSettings.isBusinessUser}
+      />
     </div>
   );
 };

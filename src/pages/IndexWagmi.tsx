@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { HeaderWagmi } from '@/components/HeaderWagmi';
 import { HeroSection } from '@/components/HeroSection';
@@ -9,6 +8,8 @@ import { CrossChainSendTokens } from '@/components/CrossChainSendTokens';
 import { NameExpirationStatus } from '@/components/NameExpirationStatus';
 import { SmartVersePay } from '@/components/SmartVersePay';
 import { DonationSectionWagmi } from '@/components/DonationSectionWagmi';
+import OnboardingTour from '@/components/OnboardingTour';
+import { useTourManager } from '@/hooks/useTourManager';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAccount, useChainId } from 'wagmi';
 import { QrCode, Calendar, Send, User, Sparkles, Globe } from 'lucide-react';
@@ -16,6 +17,16 @@ import { QrCode, Calendar, Send, User, Sparkles, Globe } from 'lucide-react';
 export const IndexWagmi = () => {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
+
+  // Tour manager for general app tour
+  const {
+    showTour,
+    tourType,
+    tourSettings,
+    startTour,
+    completeTour,
+    closeTour
+  } = useTourManager();
 
   return (
     <div className="min-h-screen bg-white">
@@ -73,14 +84,14 @@ export const IndexWagmi = () => {
             {/* Main Sections */}
             <Tabs defaultValue="dashboard" className="w-full animate-fade-in">
               <TabsList className="tabs-main grid w-full grid-cols-2 mb-12 h-auto p-2">
-                <TabsTrigger value="dashboard" className="flex items-center gap-3 text-gray-700 data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700 data-[state=active]:shadow-sm p-6 h-auto flex-col space-y-2 rounded-xl">
+                <TabsTrigger value="dashboard" className="flex items-center gap-3 text-gray-700 data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700 data-[state=active]:shadow-sm p-6 h-auto flex-col space-y-2 rounded-xl name-registration-section">
                   <div className="flex items-center gap-2">
                     <Globe className="w-5 h-5" />
                     <span className="font-semibold text-base">Dashboard</span>
                   </div>
                   <span className="text-xs opacity-75">Register & Manage Names</span>
                 </TabsTrigger>
-                <TabsTrigger value="smartverse-pay" className="flex items-center gap-3 text-gray-700 data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700 data-[state=active]:shadow-sm p-6 h-auto flex-col space-y-2 rounded-xl">
+                <TabsTrigger value="smartverse-pay" className="flex items-center gap-3 text-gray-700 data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700 data-[state=active]:shadow-sm p-6 h-auto flex-col space-y-2 rounded-xl qr-scanner-section">
                   <div className="flex items-center gap-2">
                     <QrCode className="w-5 h-5" />
                     <span className="font-semibold text-base">Cross-Chain Pay</span>
@@ -117,11 +128,11 @@ export const IndexWagmi = () => {
                 {/* Cross-Chain Pay Sub-tabs */}
                 <Tabs defaultValue="transfer" className="w-full">
                   <TabsList className="tabs-sub grid w-full grid-cols-2 p-1">
-                    <TabsTrigger value="transfer" className="flex items-center gap-2 text-gray-600 data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:shadow-sm rounded-lg">
+                    <TabsTrigger value="transfer" className="flex items-center gap-2 text-gray-600 data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:shadow-sm rounded-lg send-tokens-section">
                       <Send className="w-4 h-4" />
                       Send Tokens
                     </TabsTrigger>
-                    <TabsTrigger value="qr-pay" className="flex items-center gap-2 text-gray-600 data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:shadow-sm rounded-lg">
+                    <TabsTrigger value="qr-pay" className="flex items-center gap-2 text-gray-600 data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:shadow-sm rounded-lg qr-scanner-section">
                       <QrCode className="w-4 h-4" />
                       QR Payment
                     </TabsTrigger>
@@ -175,6 +186,14 @@ export const IndexWagmi = () => {
           </div>
         </div>
       </footer>
+
+      {/* Onboarding Tour */}
+      <OnboardingTour
+        isOpen={showTour}
+        onClose={() => completeTour(tourType)}
+        tourType={tourType}
+        isBusinessUser={tourSettings.isBusinessUser}
+      />
     </div>
   );
 };

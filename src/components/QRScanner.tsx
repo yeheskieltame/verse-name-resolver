@@ -4,19 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { Camera, CameraOff, Scan, AlertCircle, CheckCircle, Send, X } from 'lucide-react';
+import { Camera, CameraOff, Scan, AlertCircle, CheckCircle, Send, X, Building2 } from 'lucide-react';
 import QrScanner from 'qr-scanner';
-import { useAccount, useChainId, useSendTransaction, useWriteContract } from 'wagmi';
+import { useAccount, useChainId, useSendTransaction } from 'wagmi';
 import { parseEther, type Address } from 'viem';
-import { crossChainNameService } from "@/services/crossChainNameService";
-
-interface PaymentDetails {
-  recipientAddress: string;
-  amount?: string;
-  amountFormatted?: string;
-  tokenAddress?: string;
-  chainId?: number;
-}
+import { BusinessQRParser, type BusinessQRPayment } from "@/utils/qrParser";
 
 export const QRScanner = () => {
   const { address: userAddress, isConnected } = useAccount();
@@ -27,12 +19,11 @@ export const QRScanner = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [isStartingCamera, setIsStartingCamera] = useState(false);
   const [scannedData, setScannedData] = useState<string>('');
-  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(null);
+  const [businessPayment, setBusinessPayment] = useState<BusinessQRPayment | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string>('');
 
   const { sendTransaction, isPending: isSendingTx } = useSendTransaction();
-  const { writeContract, isPending: isWritingContract } = useWriteContract();
 
   // Initialize QR Scanner
   useEffect(() => {
@@ -145,91 +136,64 @@ export const QRScanner = () => {
   const handleQRResult = (data: string) => {
     setScannedData(data);
     
-    // Parse the QR data
-    const parsed = crossChainNameService.parsePaymentQR(data);
+    // Parse the QR data with business parser only
+    const parsed = BusinessQRParser.parseBusinessQR(data);
     
-    if (parsed) {
-      setPaymentDetails(parsed);
+    if (parsed && parsed.isValid) {
+      setBusinessPayment(parsed);
+      
+      // Show success toast
+      const description = BusinessQRParser.getPaymentDescription(parsed);
+      
       toast({
-        title: "QR Code Detected! 🎯",
-        description: `Payment request for ${parsed.amountFormatted || 'unknown amount'}`,
+        title: "🏢 Business Payment QR Detected!",
+        description: description,
       });
+      
     } else {
-      // Check if it's a plain address
-      if (data.match(/^0x[a-fA-F0-9]{40}$/)) {
-        setPaymentDetails({
-          recipientAddress: data
-        });
-        toast({
-          title: "Address Detected! 📍",
-          description: "Plain wallet address scanned",
-        });
-      } else {
-        setError('Invalid QR code format');
-        toast({
-          title: "Invalid QR Code",
-          description: "This QR code is not a valid payment request",
-          variant: "destructive",
-        });
-      }
+      // Not a valid business QR code
+      setError('This QR code is not a valid SmartVerse business payment QR. Please scan a business payment QR code.');
+      toast({
+        title: "Invalid QR Code",
+        description: 'This app only supports SmartVerse business payment QR codes. For personal transfers, please use the Send Tokens feature.',
+        variant: "destructive",
+      });
     }
   };
 
   const executePayment = async () => {
-    if (!paymentDetails || !isConnected) return;
+    if (!businessPayment || !isConnected) return;
 
     setIsProcessing(true);
     
     try {
-      const { recipientAddress, amount, tokenAddress, chainId: targetChainId } = paymentDetails;
+      const { recipientAddress, amount } = businessPayment;
 
-      // Check if we need to switch chains
-      if (targetChainId && targetChainId !== chainId) {
+      // Only support native ETH transfers for business payments
+      if (!amount || amount === '0') {
         toast({
-          title: "Chain Mismatch",
-          description: `Please switch to chain ID ${targetChainId} to complete this payment`,
+          title: "Missing Amount",
+          description: "This business payment QR doesn't specify an amount. Please contact the business.",
           variant: "destructive",
         });
         setIsProcessing(false);
         return;
       }
 
-      if (tokenAddress && tokenAddress !== '0x0000000000000000000000000000000000000000') {
-        // ERC20 Token Transfer
-        toast({
-          title: "Token Transfer",
-          description: "ERC20 token transfers not implemented yet",
-          variant: "destructive",
-        });
-        setIsProcessing(false);
-        return;
-      } else {
-        // Native ETH Transfer
-        if (!amount || amount === '0') {
-          toast({
-            title: "Missing Amount",
-            description: "Please enter an amount to send",
-            variant: "destructive",
-          });
-          setIsProcessing(false);
-          return;
-        }
+      // Send native ETH transaction
+      const txHash = await sendTransaction({
+        to: recipientAddress as Address,
+        value: BigInt(amount), // amount is already in wei from QR parsing
+      });
 
-        // Send native token transaction
-        const txHash = await sendTransaction({
-          to: recipientAddress as Address,
-          value: BigInt(amount), // amount is already in wei from QR parsing
-        });
+      toast({
+        title: "Business Payment Sent! 🚀",
+        description: `Transaction hash: ${txHash}`,
+      });
 
-        toast({
-          title: "Payment Sent! 🚀",
-          description: `Transaction: ${txHash}`,
-        });
-
-        // Clear payment details after successful transaction
-        setPaymentDetails(null);
-        setScannedData('');
-      }
+      // Clear payment details after successful transaction
+      setBusinessPayment(null);
+      setScannedData('');
 
     } catch (error) {
       console.error('Payment error:', error);
@@ -245,7 +209,7 @@ export const QRScanner = () => {
 
   const clearScannedData = () => {
     setScannedData('');
-    setPaymentDetails(null);
+    setBusinessPayment(null);
     setError('');
   };
 
@@ -254,18 +218,18 @@ export const QRScanner = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Scan className="w-5 h-5" />
-            QR Payment Scanner
+            <Building2 className="w-5 h-5" />
+            Business QR Payment Scanner
           </CardTitle>
           <CardDescription>
-            Scan QR codes to make instant payments
+            Scan SmartVerse business payment QR codes to make instant payments
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              Please connect your wallet to use the QR scanner
+              Please connect your wallet to use the business QR payment scanner
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -277,11 +241,12 @@ export const QRScanner = () => {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Scan className="w-5 h-5" />
-          QR Payment Scanner
+          <Building2 className="w-5 h-5" />
+          Business QR Payment Scanner
         </CardTitle>
         <CardDescription>
-          Scan payment QR codes and execute transactions directly
+          Scan SmartVerse business payment QR codes to make instant payments. 
+          For personal transfers, please use the Send Tokens feature.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -372,57 +337,66 @@ export const QRScanner = () => {
               </div>
             </div>
 
-            {/* Parsed Payment Details */}
-            {paymentDetails && (
+            {/* Parsed Business Payment Details */}
+            {businessPayment && (
               <div className="space-y-3">
-                <h4 className="font-medium">Payment Details:</h4>
+                <h4 className="font-medium flex items-center gap-2">
+                  <Building2 className="w-4 h-4" />
+                  Business Payment Details:
+                  <Badge variant="secondary">Business</Badge>
+                  <Badge variant="secondary" className="text-xs">{businessPayment.format}</Badge>
+                </h4>
                 
                 <div className="grid gap-3">
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">Recipient:</label>
-                    <p className="font-mono text-sm break-all">{paymentDetails.recipientAddress}</p>
+                    <label className="text-sm font-medium text-muted-foreground">Business Address:</label>
+                    <p className="font-mono text-sm break-all">{businessPayment.recipientAddress}</p>
                   </div>
 
-                  {paymentDetails.amountFormatted && (
+                  {businessPayment.businessName && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Business Name:</label>
+                      <p>{businessPayment.businessName}</p>
+                    </div>
+                  )}
+
+                  {businessPayment.amountFormatted && (
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Amount:</label>
-                      <p className="text-lg font-semibold">{paymentDetails.amountFormatted} ETH</p>
+                      <p className="text-lg font-semibold text-green-600">
+                        {businessPayment.amountFormatted} ETH
+                      </p>
                     </div>
                   )}
 
-                  {paymentDetails.tokenAddress && (
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Token:</label>
-                      <p className="font-mono text-sm break-all">{paymentDetails.tokenAddress}</p>
-                    </div>
-                  )}
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Category:</label>
+                    <p>{businessPayment.category}</p>
+                  </div>
 
-                  {paymentDetails.chainId && (
+                  {businessPayment.message && (
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Chain ID:</label>
-                      <p>{paymentDetails.chainId}</p>
-                      {paymentDetails.chainId !== chainId && (
-                        <Badge variant="destructive">Different Chain</Badge>
-                      )}
+                      <label className="text-sm font-medium text-muted-foreground">Message:</label>
+                      <p className="text-sm">{businessPayment.message}</p>
                     </div>
                   )}
                 </div>
 
                 {/* Payment Action */}
-                {paymentDetails.amount && paymentDetails.amount !== '0' ? (
+                {businessPayment.amount && businessPayment.amount !== '0' ? (
                   <Button 
                     onClick={executePayment} 
-                    disabled={isProcessing || isSendingTx || paymentDetails.chainId !== chainId}
-                    className="w-full flex items-center gap-2"
+                    disabled={isProcessing || isSendingTx}
+                    className="w-full flex items-center gap-2 bg-green-600 hover:bg-green-700"
                   >
                     <Send className="w-4 h-4" />
-                    {isProcessing || isSendingTx ? 'Processing...' : `Send ${paymentDetails.amountFormatted} ETH`}
+                    {isProcessing || isSendingTx ? 'Processing Payment...' : `Pay ${businessPayment.amountFormatted} ETH`}
                   </Button>
                 ) : (
                   <Alert>
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                      This QR contains an address but no amount. You can copy the address to send a custom amount.
+                      This business QR doesn't specify an amount. Please contact the business for the correct amount.
                     </AlertDescription>
                   </Alert>
                 )}
@@ -433,14 +407,19 @@ export const QRScanner = () => {
 
         {/* Instructions */}
         {!isScanning && !scannedData && (
-          <div className="text-center space-y-2">
+          <div className="text-center space-y-3">
             <p className="text-muted-foreground">
-              Tap "Start Camera" to begin scanning QR codes
+              Tap "Start Camera" to begin scanning business payment QR codes
             </p>
-            <div className="text-sm text-muted-foreground space-y-1">
-              <p>✅ Payment QR codes (EIP-681 format)</p>
-              <p>✅ Wallet addresses</p>
-              <p>✅ SmartVerse Pay QR codes</p>
+            <div className="text-sm text-muted-foreground space-y-1 bg-blue-50 p-3 rounded-lg border">
+              <p className="font-medium text-blue-800">✅ Supported QR Codes:</p>
+              <p>• SmartVerse business payment URLs</p>
+              <p>• Business payment JSON format</p>
+              <p>• Contains amount, category, and business info</p>
+            </div>
+            <div className="text-sm text-amber-700 bg-amber-50 p-3 rounded-lg border border-amber-200">
+              <p className="font-medium">ℹ️ For Personal Transfers:</p>
+              <p>Use the "Send Tokens" feature instead of QR scanner</p>
             </div>
           </div>
         )}

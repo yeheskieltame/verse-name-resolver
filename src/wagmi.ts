@@ -17,6 +17,24 @@ import {
   aurora
 } from 'wagmi/chains';
 
+// Validate environment variables
+const WALLETCONNECT_PROJECT_ID = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID;
+const ALCHEMY_SEPOLIA_KEY = import.meta.env.VITE_ALCHEMY_SEPOLIA_KEY;
+
+if (!WALLETCONNECT_PROJECT_ID) {
+  console.error('❌ VITE_WALLETCONNECT_PROJECT_ID is missing in environment variables');
+}
+
+if (!ALCHEMY_SEPOLIA_KEY) {
+  console.error('❌ VITE_ALCHEMY_SEPOLIA_KEY is missing in environment variables');
+}
+
+console.log('🔧 Environment check:', {
+  walletConnectProjectId: WALLETCONNECT_PROJECT_ID ? '✅ Set' : '❌ Missing',
+  alchemySepoliaKey: ALCHEMY_SEPOLIA_KEY ? '✅ Set' : '❌ Missing',
+  nodeEnv: import.meta.env.MODE
+});
+
 // Define custom Taranium chain
 export const taranium = {
   id: 9924,
@@ -63,7 +81,7 @@ export const SPOKE_CHAINS = [
 
 export const config = getDefaultConfig({
   appName: 'SmartVerse Name Service',
-  projectId: 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6', // Placeholder - get real one from WalletConnect Cloud
+  projectId: WALLETCONNECT_PROJECT_ID || 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6',
   chains: [
     // Mainnet chains first
     mainnet,

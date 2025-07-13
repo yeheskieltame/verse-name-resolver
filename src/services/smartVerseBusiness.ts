@@ -10,6 +10,22 @@ import {
 } from '../contracts/BusinessContracts';
 import { BusinessDataManager } from './businessDataManager';
 
+// Validate environment variables
+const validateEnvironment = () => {
+  const alchemyKey = import.meta.env.VITE_ALCHEMY_SEPOLIA_KEY;
+  
+  if (!alchemyKey) {
+    throw new Error('❌ VITE_ALCHEMY_SEPOLIA_KEY is missing. Please check your .env.local file.');
+  }
+  
+  if (alchemyKey.startsWith('-') && alchemyKey.length < 30) {
+    throw new Error('❌ VITE_ALCHEMY_SEPOLIA_KEY appears to be invalid. Please check your Alchemy API key.');
+  }
+  
+  console.log('✅ Environment variables validated for blockchain service');
+  return alchemyKey;
+};
+
 // Cache keys
 const CACHE_KEYS = {
   VAULT_ADDRESS: 'smartverse_vault_address_',
@@ -171,7 +187,7 @@ export class SmartVerseBusinessService {
    */
   async getUserVault(ownerAddress: `0x${string}`) {
     try {
-      const alchemyKey = import.meta.env.VITE_ALCHEMY_SEPOLIA_KEY;
+      const alchemyKey = validateEnvironment();
       const provider = new JsonRpcProvider(`https://eth-sepolia.g.alchemy.com/v2/${alchemyKey}`);
       const factoryAddress = BUSINESS_CONTRACTS.sepolia.contracts.BusinessFactory;
       const factory = new Contract(factoryAddress, BusinessFactory_ABI, provider);
@@ -199,7 +215,8 @@ export class SmartVerseBusinessService {
           console.error('Possible contract error - check if factory implements userToVault method');
         } else if ((error as any).code && (error as any).code.includes('NETWORK_ERROR')) {
           console.error('Network error - check RPC provider connection and Alchemy API key');
-          console.log('Using Alchemy endpoint:', `https://eth-sepolia.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_SEPOLIA_KEY ? '[API KEY SET]' : '[MISSING API KEY]'}`);
+          const currentAlchemyKey = import.meta.env.VITE_ALCHEMY_SEPOLIA_KEY;
+          console.log('Using Alchemy endpoint:', `https://eth-sepolia.g.alchemy.com/v2/${currentAlchemyKey ? '[API KEY SET]' : '[MISSING API KEY]'}`);
         }
       }
       
@@ -212,7 +229,7 @@ export class SmartVerseBusinessService {
    */
   async getBusinessSummary(vaultAddress: `0x${string}`): Promise<BusinessSummary> {
     try {
-      const alchemyKey = import.meta.env.VITE_ALCHEMY_SEPOLIA_KEY;
+      const alchemyKey = validateEnvironment();
       const provider = new JsonRpcProvider(`https://eth-sepolia.g.alchemy.com/v2/${alchemyKey}`);
       const vault = new Contract(vaultAddress, BusinessVault_ABI, provider);
       
@@ -292,7 +309,7 @@ export class SmartVerseBusinessService {
    */
   async getBusinessTransactions(vaultAddress: `0x${string}`): Promise<BusinessTransaction[]> {
     try {
-      const alchemyKey = import.meta.env.VITE_ALCHEMY_SEPOLIA_KEY;
+      const alchemyKey = validateEnvironment();
       const provider = new JsonRpcProvider(`https://eth-sepolia.g.alchemy.com/v2/${alchemyKey}`);
       const vault = new Contract(vaultAddress, BusinessVault_ABI, provider);
       const txCount = await vault.getTransactionLogCount();
@@ -433,15 +450,7 @@ export class SmartVerseBusinessService {
     try {
       console.log(`Depositing ${amountWei} wei to vault ${vaultAddress} with category "${category}"`);
       
-      const alchemyKey = import.meta.env.VITE_ALCHEMY_SEPOLIA_KEY;
-      if (!alchemyKey) {
-        return this.handleBlockchainError(
-          new Error('Missing Alchemy API key'), 
-          'depositNativeToVault', 
-          { vaultAddress, amountWei: amountWei.toString(), category }
-        );
-      }
-      
+      const alchemyKey = validateEnvironment();
       const provider = new JsonRpcProvider(`https://eth-sepolia.g.alchemy.com/v2/${alchemyKey}`);
       
       // User harus sign transaksi, jadi perlu signer dari wallet
@@ -483,14 +492,7 @@ export class SmartVerseBusinessService {
     try {
       console.log(`Depositing ${amount} of token ${tokenAddress} to vault ${vaultAddress} with category "${category}"`);
       
-      const alchemyKey = import.meta.env.VITE_ALCHEMY_SEPOLIA_KEY;
-      if (!alchemyKey) {
-        return this.handleBlockchainError(
-          new Error('Missing Alchemy API key'), 
-          'depositTokenToVault', 
-          { vaultAddress, tokenAddress, amount, category }
-        );
-      }
+      const alchemyKey = validateEnvironment();
       
       // Validasi input
       if (!tokenAddress || tokenAddress === ZeroAddress) {
@@ -599,3 +601,6 @@ export class SmartVerseBusinessService {
 }
 
 export const smartVerseBusiness = new SmartVerseBusinessService();
+
+// Validate environment variables
+validateEnvironment();

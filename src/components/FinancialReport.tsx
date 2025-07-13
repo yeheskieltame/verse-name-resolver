@@ -624,7 +624,7 @@ const FinancialReport: React.FC<FinancialReportProps> = ({ businessVaults, trans
 
       {/* Invoice Section - Hidden by default */}
       <Dialog open={!!selectedTransaction} onOpenChange={() => setSelectedTransaction(null)}>
-        <DialogContent className="max-w-3xl p-6">
+        <DialogContent className="max-w-3xl p-6 bg-white border border-gray-200 shadow-xl">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">Invoice Transaksi</h3>
             <Button variant="outline" onClick={handlePrint}>
@@ -681,7 +681,7 @@ const FinancialReport: React.FC<FinancialReportProps> = ({ businessVaults, trans
       {/* Invoice Dialog */}
       {selectedTransaction && (
         <Dialog open={!!selectedTransaction} onOpenChange={(open) => !open && setSelectedTransaction(null)}>
-          <DialogContent className="max-w-4xl p-0" onInteractOutside={(e) => e.preventDefault()}>
+          <DialogContent className="max-w-4xl p-0 bg-white border border-gray-200 shadow-xl" onInteractOutside={(e) => e.preventDefault()}>
             <div ref={invoiceRef}>
               <TransactionInvoice 
                 transaction={selectedTransaction} 
