@@ -1,103 +1,240 @@
-# SmartVerse: Platform Identitas Cross-Chain Web3 🌐
+# 🚀 SmartVerse - Web3 Identity & Payment Platform
 
-**Visi Kami: Menjadikan Web3 dapat diakses oleh semua orang, satu nama pada satu waktu.**
+**The Universal Web3 Identity Solution with Business Integration**
 
-![Project Status](https://img.shields.io/badge/Status-Cross--Chain%20Live-green)
-![Hub Chain](https://img.shields.io/badge/Hub%20Chain-Sepolia-blue)
-![Supported Networks](https://img.shields.io/badge/Networks-10+-orange)
-![UI Theme](https://img.shields.io/badge/UI-Modern%20Light%20Theme-gold)
+![Project Status](https://img.shields.io/badge/Status-Live%20Production-brightgreen)
+![Platform](https://img.shields.io/badge/Platform-Vercel-blue)
+![Hub Chain](https://img.shields.io/badge/Hub%20Chain-Sepolia-orange)
+![Networks](https://img.shields.io/badge/Networks-16+-purple)
+
+**🌐 Live Production**: [https://smartverse-id.vercel.app](https://smartverse-id.vercel.app)
 
 ---
 
-## 🚀 Platform Identitas Web3 Terlengkap
+## � Overview
 
-SmartVerse adalah platform identitas cross-chain yang komprehensif dengan antarmuka modern, menyediakan semua tools yang dibutuhkan untuk mengelola identitas digital Anda di ekosistem Web3.
+SmartVerse is a comprehensive Web3 platform that combines decentralized naming, QR payments, cross-chain transfers, and business vault solutions in one integrated ecosystem. Built for both individual users and businesses (UMKM).
 
-### 🌟 Fitur Utama Platform
+### 🎯 **Core Mission**
+Making Web3 accessible for everyone by providing universal digital identity, simple payment systems, and powerful business infrastructure.
 
-#### **1. 🏛️ SmartVerse Name Service (SWNS)**
-- **Registrasi Nama Universal**: Daftar nama `.sw` sekali di Sepolia, gunakan di semua chain
-- **NFT-Based Ownership**: Nama disimpan sebagai NFT dengan metadata lengkap
-- **Cross-Chain Resolution**: Resolusi nama otomatis dari chain manapun
-- **Subscription Model**: Sistem berlangganan dengan renewal otomatis
+## ✨ Key Features
 
-#### **2. 💰 SmartVerse Pay (QR Payment System)**
-- **Static QR Codes**: Generate QR untuk menerima pembayaran tetap
-- **Dynamic QR Codes**: QR dengan amount dan recipient yang dapat disesuaikan
-- **Multi-Token Support**: Dukungan ETH dan semua ERC-20 tokens
-- **QR Scanner**: Scan QR codes untuk pembayaran instan
-- **Mobile Optimized**: UI responsif untuk penggunaan mobile
+### 🏛️ **SmartVerse Name Service (SWNS)**
+- **NFT-Based Names**: Register `.sw` names as NFTs on Hub Chain (Sepolia)
+- **Cross-Chain Resolution**: Use your name across 16+ blockchain networks
+- **Subscription Model**: Annual subscription with 50% renewal discounts
+- **Universal Identity**: One name, all chains
 
-#### **3. 🔄 Cross-Chain Token Transfer**
-- **Name-Based Transfer**: Kirim token menggunakan nama `.sw`
-- **Multi-Network Support**: 10+ EVM chains didukung
-- **Smart Token Selector**: Interface untuk memilih token dengan mudah
-- **Custom Token Import**: Import token custom via contract address
-- **Real-time Balance**: Cek balance real-time di semua chains
+### 📱 **QR Payment System**
+- **Static QR**: Permanent QR codes for receiving payments
+- **Dynamic QR**: QR codes with pre-filled amounts and recipients
+- **Camera Scanner**: Built-in QR scanner for instant payments
+- **Multi-Format Support**: EIP-681, Ethereum URI, and custom formats
 
-#### **4. 📱 Modern UI/UX Design**
-- **Light Theme**: Tema putih modern dengan aksen emas dan biru
-- **Floating Navigation**: Navigasi floating yang mengikuti scroll
-- **Responsive Design**: Perfect di desktop, tablet, dan mobile
-- **Gradient Accents**: Subtle gradient effects untuk nuansa premium
-- **High Contrast**: Semua teks dan icon mudah dibaca
+### 🌐 **Cross-Chain Transfers**
+- **Name-Based Transfers**: Send to "alice.sw" instead of long addresses
+- **Multi-Token Support**: ETH, USDC, DAI, and all ERC-20 tokens
+- **Quick Actions**: 25%, 50%, Max amount buttons
+- **Real-Time Balance**: Live balance checking across networks
 
-#### **5. � SmartVerse Business (UMKM Digital)**
-- **Business Registration**: Registrasi bisnis on-chain dengan metadata lengkap
-- **Digital Vault Creation**: Buat brankas digital untuk manajemen aset bisnis
-- **Automated Bookkeeping**: Buku kas otomatis dengan kategorisasi transaksi
-- **Financial Reports**: Laporan keuangan real-time dengan visualisasi
-- **Multi-Chain Sync**: Sinkronisasi data bisnis di semua chains
-- **Payment Integration**: Integrasi pembayaran dengan MockIDRT stablecoin
-- **Income/Expense Tracking**: Track semua transaksi bisnis otomatis
-- **Business Analytics**: Analisis performa bisnis dan cash flow
+### 🏢 **Business Vault (UMKM Digital)**
+- **Smart Contract Vaults**: Deploy personal business vaults
+- **IDRT Integration**: Indonesian Rupiah Token for local businesses
+- **Automated Accounting**: Auto-categorized income and expenses
+- **Financial Dashboard**: Real-time business analytics and reporting
 
-#### **6. �🌐 Network Management**
-- **Network Auto-Detection**: Deteksi jaringan aktif otomatis
-- **Chain Switch Prompts**: Prompt untuk switch chain ketika diperlukan
-- **Network Status Indicators**: Real-time status koneksi
-- **RPC Health Monitoring**: Monitor kesehatan RPC endpoints
+### 🎓 **Onboarding System**
+- **Interactive Tours**: Step-by-step guidance for new users
+- **Smart User Detection**: Different flows for general and business users
+- **Progress Tracking**: Resume tours from where you left off
 
-#### **6. 🎯 Name Directory & Management**
-- **Name Search**: Cari dan browse nama yang telah terdaftar
-- **Ownership Verification**: Verifikasi kepemilikan nama
-- **Expiration Tracking**: Monitor tanggal expired nama
-- **Bulk Operations**: Operasi massal untuk multiple names
+## 🔧 Technology Stack
 
-#### **7. 🏢 SmartVerse Business (NEW!)**
-- **Digital Vault**: Brankas digital terdesentralisasi untuk UMKM
-- **Accounting System**: Sistem akuntansi otomatis dengan kategorisasi
-- **Cross-Chain Reports**: Laporan keuangan lintas-chain
-- **Business Analytics**: Dashboard analitik untuk performa bisnis
-- **Multi-Business Support**: Kelola multiple bisnis dalam satu akun
+### **Frontend**
+- **React 18** with TypeScript
+- **Vite** for build tooling
+- **Tailwind CSS** + **shadcn/ui** components
+- **Wagmi + Viem** for Web3 integration
 
-> 📖 **Dokumentasi Lengkap**: Lihat [BUSINESS_FEATURES.md](./BUSINESS_FEATURES.md) untuk detail fitur SmartVerse Business
+### **Blockchain**
+- **Hub Chain**: Sepolia (name storage & business vaults)
+- **Multi-Chain**: 16+ EVM-compatible networks
+- **Smart Contracts**: Solidity with OpenZeppelin
+- **Token Standard**: ERC-20 & NFT (ERC-721)
 
-## 📋 Halaman dan Fitur Lengkap
+### **Deployment**
+- **Platform**: Vercel
+- **Domain**: smartverse-id.vercel.app
+- **SSL**: Enabled with CDN
+- **Routing**: SPA with fallback handling
 
-### 🏠 **Home Page**
-- **Hero Section**: Pengenalan platform dengan call-to-action jelas
-- **Feature Showcase**: Highlight fitur utama dengan visual menarik
-- **Quick Start Guide**: Panduan cepat untuk memulai
-- **Network Status**: Status real-time semua supported networks
+## 🚀 Getting Started
 
-### 🎛️ **Dashboard Page**
-- **Name Registration**: Form registrasi nama dengan validasi real-time
-- **Name Management**: Kelola nama yang sudah dimiliki
-- **Subscription Status**: Monitor status berlangganan
-- **Cross-Chain Directory**: Browse semua nama di ecosystem
+### 1. **Access the Platform**
+Visit [https://smartverse-id.vercel.app](https://smartverse-id.vercel.app)
 
-### 🏢 **Business Page (SmartVerse Business)**
-- **Business Dashboard**: Overview keuangan dari semua bisnis
-- **Business Registration**: Wizard pendaftaran bisnis baru
-- **Vault Management**: Kelola brankas digital per bisnis
-- **Financial Reports**: Laporan keuangan dengan analitik mendalam
-- **Cross-Chain Operations**: Operasi lintas-chain untuk UMKM
+### 2. **Connect Your Wallet**
+- Install MetaMask or compatible Web3 wallet
+- Connect to Sepolia testnet
+- Get test ETH from faucets
 
-### 💳 **Pay Page (SmartVerse Pay)**
-- **QR Code Generator**: 
-  - Static QR untuk alamat tetap
-  - Dynamic QR dengan amount custom
+### 3. **Register Your Name**
+- Go to "Register Name" tab
+- Choose your unique `.sw` name
+- Pay 0.01 ETH registration fee
+- Own your Web3 identity!
+
+### 4. **Explore Features**
+- Send tokens using names
+- Generate QR codes for payments
+- Create business vaults
+- Start your Web3 journey
+
+## 📊 Supported Networks
+
+**Hub Chain (Name Storage):**
+- Sepolia Testnet
+
+**Cross-Chain Resolution:**
+- Ethereum Mainnet
+- Polygon
+- BSC (Binance Smart Chain)
+- Arbitrum
+- Optimism
+- Avalanche
+- Fantom
+- Base
+- And 8+ more networks
+
+## 🏗️ Project Structure
+
+```
+src/
+├── components/           # Reusable UI components
+│   ├── BusinessDashboard.tsx
+│   ├── QRScanner.tsx
+│   ├── SmartVersePay.tsx
+│   └── ...
+├── pages/               # Main application pages
+│   ├── HomePage.tsx
+│   ├── DashboardPage.tsx
+│   ├── BusinessPage.tsx
+│   └── PayPage.tsx
+├── services/            # Business logic & API
+│   ├── swnsServiceWagmi.ts
+│   ├── crossChainNameService.ts
+│   └── smartVerseBusiness.ts
+├── contracts/           # Smart contract ABIs
+├── hooks/              # Custom React hooks
+└── utils/              # Helper utilities
+```
+
+## 💼 Business Features
+
+### **For UMKM & Small Businesses:**
+- Deploy personal business vault smart contracts
+- Accept payments via QR codes
+- Automatic transaction categorization
+- Real-time financial reports
+- Multi-currency support (ETH, IDRT)
+- Export data for tax compliance
+
+### **Use Cases:**
+- Online shops accepting crypto payments
+- Local restaurants with QR payment displays
+- Freelancers managing project payments
+- Service providers with invoice generation
+
+## 🔒 Security
+
+- **Smart Contract Security**: Audited contracts with OpenZeppelin
+- **Access Control**: Owner-only vault functions
+- **Input Validation**: Comprehensive on-chain and frontend validation
+- **XSS Prevention**: Content Security Policy implementation
+
+## 📚 Documentation
+
+- **[Complete Guide](./SMARTVERSE_COMPLETE_GUIDE.md)**: Comprehensive feature documentation
+- **[Deployment Guide](./VERCEL_DEPLOYMENT.md)**: Vercel deployment instructions
+- **[Business Features](./BUSINESS_FEATURES.md)**: UMKM business documentation
+
+## �️ Development
+
+### **Prerequisites**
+- Node.js 18+
+- npm or yarn
+- Git
+
+### **Installation**
+```bash
+git clone https://github.com/yeheskieltame/verse-name-resolver.git
+cd verse-name-resolver
+npm install
+```
+
+### **Development**
+```bash
+npm run dev
+# Access at http://localhost:8080
+```
+
+### **Build**
+```bash
+npm run build
+npm run preview
+```
+
+### **Deploy**
+```bash
+chmod +x deploy.sh
+./deploy.sh
+```
+
+## � Roadmap
+
+### **Phase 1: Foundation** ✅
+- [x] SmartVerse Name Service with NFTs
+- [x] Cross-chain name resolution
+- [x] QR payment system
+- [x] Business vault functionality
+- [x] Production deployment
+
+### **Phase 2: Enhancement** 🔄
+- [ ] Mobile app (React Native)
+- [ ] Advanced business analytics
+- [ ] Team management for businesses
+- [ ] API for third-party integration
+
+### **Phase 3: Ecosystem** 📋
+- [ ] DeFi protocol integration
+- [ ] NFT marketplace with .sw domains
+- [ ] Governance token & DAO
+- [ ] Enterprise solutions
+
+## 🤝 Contributing
+
+We welcome contributions! Please:
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+## 📞 Support
+
+- **Discord**: Join our community
+- **Email**: support@smartverse.app
+- **GitHub Issues**: Report bugs and request features
+- **Documentation**: Comprehensive guides available
+
+---
+
+**🚀 Experience the future of Web3 identity at [smartverse-id.vercel.app](https://smartverse-id.vercel.app)**
   - Multi-token support
 - **QR Scanner**:
   - Camera integration untuk scan QR
