@@ -30,7 +30,9 @@ export default defineConfig(({ mode }) => ({
       },
     },
     sourcemap: false,
-    minify: 'terser',
+    minify: 'esbuild',
+    target: 'esnext',
+    chunkSizeWarningLimit: 1600,
   },
   define: {
     global: 'globalThis',
