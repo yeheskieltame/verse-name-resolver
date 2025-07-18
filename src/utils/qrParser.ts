@@ -1,19 +1,23 @@
 /**
  * Business QR Parser - SmartVerse Payment System
- * Focused only on business payment QR codes for reliability
+ * Enhanced parser for both ethereum: protocol and DApp URL formats
  */
 
 import { formatUnits, parseUnits, isAddress } from 'viem';
+import { BUSINESS_CONTRACTS } from '@/contracts/BusinessContracts';
 
 export interface BusinessQRPayment {
   type: 'business';
   recipientAddress: string;
   businessName?: string;
-  amount?: string;  // Amount in wei
-  amountFormatted?: string;  // Human readable amount
+  amount?: string;  // Amount in wei for blockchain transactions
+  amountFormatted?: string;  // Human readable amount for display
+  amountEther?: string;  // Amount in ether format for transactions
   category: string;
   message?: string;
-  format: 'business-url' | 'business-json';
+  format: 'ethereum-protocol' | 'dapp-url' | 'business-json';
+  tokenAddress?: string;
+  tokenSymbol?: string;
   raw: string;
   isValid: boolean;
 }
@@ -22,7 +26,7 @@ export class BusinessQRParser {
   
   /**
    * Parse business QR code and return payment details
-   * Only supports SmartVerse business payment formats
+   * Supports ethereum: protocol, DApp URLs, and JSON formats
    */
   static parseBusinessQR(qrData: string): BusinessQRPayment | null {
     try {
@@ -31,18 +35,31 @@ export class BusinessQRParser {
       // Clean the data
       const cleanedData = qrData.trim();
       
-      // Try business URL format first
-      const urlResult = this.parseBusinessURL(cleanedData);
-      if (urlResult) {
-        console.log('✅ Successfully parsed business URL format');
-        return urlResult;
+      // Try ethereum: protocol format first (for token payments)
+      if (cleanedData.startsWith('ethereum:')) {
+        const result = this.parseEthereumProtocol(cleanedData);
+        if (result) {
+          console.log('✅ Successfully parsed ethereum: protocol format');
+          return result;
+        }
+      }
+      
+      // Try business URL format
+      if (cleanedData.includes('smartverse-id.vercel.app/pay') || cleanedData.includes('/pay?')) {
+        const result = this.parseBusinessURL(cleanedData);
+        if (result) {
+          console.log('✅ Successfully parsed business URL format');
+          return result;
+        }
       }
       
       // Try business JSON format
-      const jsonResult = this.parseBusinessJSON(cleanedData);
-      if (jsonResult) {
-        console.log('✅ Successfully parsed business JSON format');
-        return jsonResult;
+      if (cleanedData.startsWith('{')) {
+        const result = this.parseBusinessJSON(cleanedData);
+        if (result) {
+          console.log('✅ Successfully parsed business JSON format');
+          return result;
+        }
       }
       
       console.warn('❌ Not a valid business payment QR code');
@@ -55,38 +72,134 @@ export class BusinessQRParser {
   }
   
   /**
-   * Parse business payment URL format
-   * Format: https://smartverse.app/pay/{address}?amount=1.5&category=Product&message=Order123
+   * Parse ethereum: protocol format for token payments
+   * Format: ethereum:0xTokenAddress/transfer?address=0xVault&uint256=amountInWei
+   */
+  private static parseEthereumProtocol(qrData: string): BusinessQRPayment | null {
+    try {
+      console.log('🔗 Parsing ethereum: protocol format...');
+      
+      // Parse the ethereum: URL
+      const urlParts = qrData.split('?');
+      const basePart = urlParts[0]; // ethereum:0xTokenAddress/transfer
+      const queryPart = urlParts[1]; // address=0xVault&uint256=amount
+      
+      if (!queryPart) {
+        console.warn('No query parameters in ethereum: URL');
+        return null;
+      }
+      
+      // Extract token address from base part
+      const tokenMatch = basePart.match(/ethereum:([0-9a-fA-Fx]+)\/transfer/);
+      if (!tokenMatch) {
+        console.warn('Invalid ethereum: protocol format');
+        return null;
+      }
+      
+      const tokenAddress = tokenMatch[1];
+      if (!isAddress(tokenAddress)) {
+        console.warn('Invalid token address:', tokenAddress);
+        return null;
+      }
+      
+      // Parse query parameters
+      const params = new URLSearchParams(queryPart);
+      const vaultAddress = params.get('address');
+      const uint256Amount = params.get('uint256');
+      const category = params.get('data') || 'Token Payment';
+      
+      if (!vaultAddress || !isAddress(vaultAddress)) {
+        console.warn('Invalid vault address:', vaultAddress);
+        return null;
+      }
+      
+      if (!uint256Amount) {
+        console.warn('No amount specified in ethereum: URL');
+        return null;
+      }
+      
+      // Convert wei amount to human readable
+      const amountWei = uint256Amount;
+      const amountEther = formatUnits(BigInt(amountWei), 18);
+      
+      // Determine token symbol
+      let tokenSymbol = 'IDRT';
+      if (tokenAddress === BUSINESS_CONTRACTS.sepolia.contracts.MockIDRT) {
+        tokenSymbol = 'IDRT';
+      }
+      
+      const result: BusinessQRPayment = {
+        type: 'business',
+        recipientAddress: vaultAddress,
+        amount: amountWei,
+        amountEther: amountEther,
+        amountFormatted: `${parseFloat(amountEther).toFixed(2)} ${tokenSymbol}`,
+        category,
+        format: 'ethereum-protocol',
+        tokenAddress,
+        tokenSymbol,
+        raw: qrData,
+        isValid: true
+      };
+      
+      console.log('✅ Parsed ethereum: protocol QR:', result);
+      return result;
+      
+    } catch (error) {
+      console.error('❌ Error parsing ethereum: protocol:', error);
+      return null;
+    }
+  }
+  
+  /**
+   * Parse business payment URL format  
+   * Format: https://smartverse-id.vercel.app/pay?address=0x...&amount=1.5&category=Product&type=business
    */
   private static parseBusinessURL(qrData: string): BusinessQRPayment | null {
     try {
-      // Check if it's a business payment URL
-      if (!qrData.includes('/pay/') && !qrData.includes('business-payment')) {
+      // Check if it's our DApp URL with pay endpoint
+      if (!qrData.includes('/pay?') && !qrData.includes('smartverse-id.vercel.app')) {
         return null;
       }
       
       const url = new URL(qrData);
-      const pathParts = url.pathname.split('/');
-      const recipientAddress = pathParts[pathParts.length - 1];
+      const params = new URLSearchParams(url.search);
       
-      if (!isAddress(recipientAddress)) {
-        console.warn('Invalid recipient address in URL:', recipientAddress);
+      const address = params.get('address');
+      const amount = params.get('amount');
+      const category = params.get('category') || 'Pembayaran QR';
+      const type = params.get('type');
+      const tokenAddress = params.get('token');
+      const tokenSymbol = params.get('tokenSymbol');
+      
+      if (!address || !isAddress(address)) {
+        console.warn('Invalid address in DApp URL:', address);
         return null;
       }
       
-      const amount = url.searchParams.get('amount');
-      const category = url.searchParams.get('category') || 'Payment';
-      const message = url.searchParams.get('message');
-      const businessName = url.searchParams.get('business') || url.searchParams.get('name');
+      // Validate that this is a business payment
+      if (type !== 'business') {
+        console.warn('QR code is not marked as business payment');
+        return null;
+      }
       
       let amountWei: string | undefined;
+      let amountEther: string | undefined;
       let amountFormatted: string | undefined;
       
       if (amount && amount !== '0') {
         try {
-          // Assume amount is in ETH, convert to wei
-          amountWei = parseUnits(amount, 18).toString();
-          amountFormatted = amount;
+          if (tokenAddress) {
+            // Token payment
+            amountWei = parseUnits(amount, 18).toString();
+            amountEther = amount;
+            amountFormatted = `${parseFloat(amount).toFixed(2)} ${tokenSymbol || 'IDRT'}`;
+          } else {
+            // Native ETH payment
+            amountWei = parseUnits(amount, 18).toString();
+            amountEther = amount;
+            amountFormatted = `${parseFloat(amount).toFixed(6)} ETH`;
+          }
         } catch (error) {
           console.warn('Invalid amount format:', amount);
           return null;
@@ -95,13 +208,14 @@ export class BusinessQRParser {
       
       const result: BusinessQRPayment = {
         type: 'business',
-        recipientAddress,
-        businessName,
+        recipientAddress: address,
         amount: amountWei,
-        amountFormatted,
-        category,
-        message,
-        format: 'business-url',
+        amountEther: amountEther,
+        amountFormatted: amountFormatted,
+        category: category,
+        format: 'dapp-url',
+        tokenAddress: tokenAddress || undefined,
+        tokenSymbol: tokenSymbol || undefined,
         raw: qrData,
         isValid: true
       };

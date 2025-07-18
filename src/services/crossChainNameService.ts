@@ -25,6 +25,7 @@ import {
 import { mainnet, sepolia } from 'wagmi/chains';
 import { HUB_CHAIN_ID, config } from '@/wagmi';
 import { SWNS_ABI, CONTRACTS_BY_CHAIN_ID } from '@/contracts/swnsContract';
+import { BUSINESS_CONTRACTS } from '@/contracts/BusinessContracts';
 import { getPublicClient } from '@wagmi/core';
 
 export interface CrossChainNameResolver {
@@ -721,8 +722,8 @@ export class CrossChainNameService implements CrossChainNameResolver {
   }
 
   /**
-   * Generate QR code for business vault with depositNative
-   * Returns URL to the DApp with necessary parameters
+   * Generate QR code for business vault payments with dynamic vault resolution
+   * Returns proper format for both native and token payments
    */
   generateBusinessVaultQR(
     vaultAddress: string, 
@@ -730,55 +731,136 @@ export class CrossChainNameService implements CrossChainNameResolver {
     category: string = 'Pembayaran QR',
     tokenAddress?: string,
     tokenSymbol: string = 'IDRT',
-    tokenDecimals: number = 18
+    tokenDecimals: number = 18,
+    chainId: number = 11155111 // Sepolia default
   ): string {
-    // Check if we're generating a token payment QR (IDRT)
-    if (tokenAddress && amount) {
-      // For token payments, provide two formats:
-      // 1. SmartVerse Pay format
-      // 2. ERC20 Transfer format (ethereum: protocol)
-      
-      // For IDRT tokens, generate ethereum: protocol format which is more widely supported
-      // Format: ethereum:0xTokenAddress/transfer?address=0xRecipient&uint256=value&chainId=11155111
-      
-      // Convert amount to token units (use specified decimals, default 18 for IDRT)
-      const tokenAmount = parseUnits(amount, tokenDecimals).toString();
-      
-      // Create URL with ethereum: protocol
-      let url = `ethereum:${tokenAddress}/transfer?address=${vaultAddress}&uint256=${tokenAmount}&chainId=11155111`;
-      
-      // Add category as data parameter
-      if (category) {
-        url += `&data=${encodeURIComponent(category)}`;
+    console.log('🔧 Generating Business Vault QR:', {
+      vaultAddress,
+      amount,
+      category,
+      tokenAddress,
+      tokenSymbol,
+      tokenDecimals,
+      chainId
+    });
+
+    // Validate vault address
+    if (!vaultAddress || !vaultAddress.startsWith('0x')) {
+      throw new Error('Invalid vault address');
+    }
+
+    // Get correct token address for the chain if not provided
+    let resolvedTokenAddress = tokenAddress;
+    if (!resolvedTokenAddress && tokenSymbol === 'IDRT') {
+      // Get MockIDRT address for the current chain
+      const chainConfig = Object.values(BUSINESS_CONTRACTS).find(chain => chain.chainId === chainId);
+      if (chainConfig?.contracts.MockIDRT) {
+        resolvedTokenAddress = chainConfig.contracts.MockIDRT;
+        console.log(`🔗 Using MockIDRT address for chain ${chainId}:`, resolvedTokenAddress);
       }
-      
-      console.log('Generated ethereum: protocol QR URL:', url);
-      return url;
     }
-    
-    // For native currency or static QR codes, use the standard SmartVerse Pay format
-    let url = `https://smartverse-id.vercel.app/pay?address=${vaultAddress}`;
-    
-    // Add optional parameters
-    if (amount) {
-      url += `&amount=${amount}`;
-    }
-    
-    if (category) {
-      url += `&category=${encodeURIComponent(category)}`;
-    }
-    
-    if (tokenAddress) {
-      url += `&token=${tokenAddress}`;
-      url += `&tokenSymbol=${encodeURIComponent(tokenSymbol)}`;
-      
-      // Add token amount specifically for better parsing in scanner
-      if (amount) {
-        url += `&tokenAmount=${amount}`;
+
+    // For token payments (IDRT), use ethereum: protocol format
+    if (resolvedTokenAddress && amount && amount !== '0') {
+      try {
+        const tokenAmountWei = parseUnits(amount, tokenDecimals);
+        
+        // EIP-681 format for ERC20 token transfer
+        // Format: ethereum:0xTokenAddress/transfer?address=0xVaultAddress&uint256=amountInWei&chainId=chainId
+        const url = `ethereum:${resolvedTokenAddress}/transfer?address=${vaultAddress}&uint256=${tokenAmountWei.toString()}&chainId=${chainId}`;
+        
+        console.log('✅ Generated Token QR (EIP-681):', url);
+        return url;
+      } catch (error) {
+        console.error('❌ Error converting token amount:', error);
+        throw new Error('Invalid token amount format');
       }
     }
     
+    // For native ETH payments, use ethereum: protocol
+    if (amount && amount !== '0' && !resolvedTokenAddress) {
+      try {
+        const ethAmountWei = parseUnits(amount, 18);
+        
+        // EIP-681 format for native ETH transfer
+        // Format: ethereum:0xVaultAddress?value=amountInWei&chainId=chainId
+        const url = `ethereum:${vaultAddress}?value=${ethAmountWei.toString()}&chainId=${chainId}`;
+        
+        console.log('✅ Generated ETH QR (EIP-681):', url);
+        return url;
+      } catch (error) {
+        console.error('❌ Error converting ETH amount:', error);
+        throw new Error('Invalid ETH amount format');
+      }
+    }
+    
+    // For static QR (no amount), use DApp URL format
+    const baseUrl = 'https://smartverse-id.vercel.app/pay';
+    const params = new URLSearchParams();
+    
+    params.set('address', vaultAddress);
+    params.set('category', category);
+    params.set('type', 'business'); // Mark as business payment
+    params.set('chainId', chainId.toString());
+    
+    if (resolvedTokenAddress) {
+      params.set('token', resolvedTokenAddress);
+      params.set('tokenSymbol', tokenSymbol);
+    }
+    
+    const url = `${baseUrl}?${params.toString()}`;
+    
+    console.log('✅ Generated Static Business QR (DApp URL):', url);
     return url;
+  }
+
+  /**
+   * Get user's business vault address from BusinessFactory
+   */
+  async getUserBusinessVault(userAddress: string, chainId: number = 11155111): Promise<string | null> {
+    try {
+      // Only check on Sepolia (hub chain) where BusinessFactory is deployed
+      if (chainId !== 11155111) {
+        console.log('⚠️ BusinessFactory only available on Sepolia, redirecting...');
+        chainId = 11155111;
+      }
+
+      const publicClient = getPublicClient(config, { chainId: 11155111 });
+      if (!publicClient) {
+        throw new Error('Failed to get public client for Sepolia');
+      }
+
+      const factoryAddress = BUSINESS_CONTRACTS.sepolia.contracts.BusinessFactory as `0x${string}`;
+      
+      // Read user's vault address from BusinessFactory
+      const vaultAddress = await publicClient.readContract({
+        address: factoryAddress,
+        abi: [
+          {
+            "inputs": [{"internalType": "address", "name": "", "type": "address"}],
+            "name": "userToVault",
+            "outputs": [{"internalType": "address", "name": "", "type": "address"}],
+            "stateMutability": "view",
+            "type": "function"
+          }
+        ],
+        functionName: 'userToVault',
+        args: [userAddress as `0x${string}`]
+      });
+
+      // Check if vault exists (not zero address)
+      if (vaultAddress && vaultAddress !== '0x0000000000000000000000000000000000000000') {
+        console.log('✅ Found business vault for user:', { userAddress, vaultAddress });
+        return vaultAddress;
+      }
+
+      console.log('❌ No business vault found for user:', userAddress);
+      return null;
+
+    } catch (error) {
+      console.error('❌ Error getting user business vault:', error);
+      return null;
+    }
   }
 }
 

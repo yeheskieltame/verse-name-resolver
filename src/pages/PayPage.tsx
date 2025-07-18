@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { CrossChainSendTokens } from '@/components/CrossChainSendTokens';
 import { SmartVersePay } from '@/components/SmartVersePay';
+import { UniversalQRScanner } from '@/components/UniversalQRScanner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Send, QrCode, Info, Zap, Shield, Smartphone } from 'lucide-react';
 
@@ -38,7 +39,7 @@ export const PayPage = () => {
 
         {/* Payment Tabs */}
         <Tabs defaultValue="transfer" className="w-full max-w-6xl mx-auto">
-          <TabsList className="tabs-main grid w-full grid-cols-2 mb-8 h-auto">
+          <TabsList className="tabs-main grid w-full grid-cols-3 mb-8 h-auto">
             <TabsTrigger value="transfer" className="flex items-center gap-3 text-gray-700 data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700 p-4 h-auto flex-col space-y-1">
               <div className="flex items-center gap-2">
                 <Send className="w-5 h-5" />
@@ -46,12 +47,19 @@ export const PayPage = () => {
               </div>
               <span className="text-xs opacity-80">Transfer to .sw names</span>
             </TabsTrigger>
-            <TabsTrigger value="qr-pay" className="flex items-center gap-3 text-gray-700 data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700 p-4 h-auto flex-col space-y-1">
+            <TabsTrigger value="qr-generate" className="flex items-center gap-3 text-gray-700 data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700 p-4 h-auto flex-col space-y-1">
               <div className="flex items-center gap-2">
                 <QrCode className="w-5 h-5" />
-                <span className="font-semibold">QR Payment</span>
+                <span className="font-semibold">Generate QR</span>
               </div>
-              <span className="text-xs opacity-80">Generate & scan QR codes</span>
+              <span className="text-xs opacity-80">Create payment QRs</span>
+            </TabsTrigger>
+            <TabsTrigger value="qr-scan" className="flex items-center gap-3 text-gray-700 data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700 p-4 h-auto flex-col space-y-1">
+              <div className="flex items-center gap-2">
+                <Smartphone className="w-5 h-5" />
+                <span className="font-semibold">Scan QR</span>
+              </div>
+              <span className="text-xs opacity-80">Universal scanner</span>
             </TabsTrigger>
           </TabsList>
 
@@ -69,16 +77,30 @@ export const PayPage = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="qr-pay" className="w-full mt-8">
+          <TabsContent value="qr-generate" className="w-full mt-8">
             <div className="space-y-6">
               <div className="text-center space-y-2">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">QR Code Payments</h2>
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Generate Payment QR</h2>
                 <p className="text-gray-600 text-sm sm:text-base">
-                  Generate payment QR codes or scan to pay instantly
+                  Create QR codes for receiving payments
+                </p>
+              </div>
+              <div className="tour-generate-qr">
+                <SmartVersePay />
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="qr-scan" className="w-full mt-8">
+            <div className="space-y-6">
+              <div className="text-center space-y-2">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Universal QR Scanner</h2>
+                <p className="text-gray-600 text-sm sm:text-base">
+                  Scan any SmartVerse QR code - Business or Personal payments
                 </p>
               </div>
               <div className="tour-scan-qr">
-                <SmartVersePay />
+                <UniversalQRScanner />
               </div>
             </div>
           </TabsContent>

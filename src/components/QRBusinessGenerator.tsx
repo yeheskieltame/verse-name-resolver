@@ -19,6 +19,7 @@ import { parseUnits } from 'viem';
 import QRCode from 'qrcode';
 import { BUSINESS_CONTRACTS } from '../contracts/BusinessContracts';
 import { crossChainNameService } from '@/services/crossChainNameService';
+import { useChainId } from 'wagmi';
 
 interface QRBusinessGeneratorProps {
   vaultAddress: `0x${string}`;
@@ -29,6 +30,8 @@ const QRBusinessGenerator: React.FC<QRBusinessGeneratorProps> = ({
   vaultAddress, 
   businessName 
 }) => {
+  const chainId = useChainId();
+  
   // State untuk mode QR
   const [qrMode, setQrMode] = useState<'static' | 'dynamic'>('static');
   
@@ -46,6 +49,17 @@ const QRBusinessGenerator: React.FC<QRBusinessGeneratorProps> = ({
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
+  
+  // Auto-set MockIDRT address based on current chain
+  useEffect(() => {
+    const chainConfig = Object.values(BUSINESS_CONTRACTS).find(chain => chain.chainId === chainId);
+    if (chainConfig?.contracts.MockIDRT) {
+      setFormData(prev => ({
+        ...prev,
+        tokenAddress: chainConfig.contracts.MockIDRT
+      }));
+    }
+  }, [chainId]);
   
   // Token list untuk dropdown
   const tokenOptions = [
@@ -103,32 +117,66 @@ const QRBusinessGenerator: React.FC<QRBusinessGeneratorProps> = ({
       
       let url = '';
       
-      // Gunakan service untuk generate URL yang benar
+      // Generate QR URL menggunakan service yang sudah diperbaiki dengan chainId
       if (qrMode === 'static') {
-        // QR Statis - tanpa amount
-        url = crossChainNameService.generateBusinessVaultQR(
-          vaultAddress,
-          undefined,
-          formData.category
-        );
+        // QR Statis - tanpa amount, support kedua currency
+        if (formData.currency === 'IDRT' && formData.tokenAddress) {
+          // Static QR untuk token - customer akan input amount nanti
+          url = crossChainNameService.generateBusinessVaultQR(
+            vaultAddress,
+            undefined, // no amount for static QR
+            formData.category,
+            formData.tokenAddress,
+            formData.currency,
+            formData.tokenDecimals,
+            chainId // Add current chainId
+          );
+        } else {
+          // Static QR untuk ETH native
+          url = crossChainNameService.generateBusinessVaultQR(
+            vaultAddress,
+            undefined,
+            formData.category,
+            undefined, // no token address
+            'ETH',
+            18,
+            chainId // Add current chainId
+          );
+        }
       } else {
-        // QR Dinamis - dengan amount
-        url = crossChainNameService.generateBusinessVaultQR(
-          vaultAddress,
-          formData.amount,
-          formData.category,
-          formData.currency === 'IDRT' ? formData.tokenAddress : undefined,
-          formData.currency === 'IDRT' ? formData.currency : undefined,
-          formData.tokenDecimals
-        );
+        // QR Dinamis - dengan amount yang sudah ditentukan
+        if (formData.currency === 'IDRT' && formData.tokenAddress) {
+          // Dynamic QR untuk token IDRT
+          url = crossChainNameService.generateBusinessVaultQR(
+            vaultAddress,
+            formData.amount,
+            formData.category,
+            formData.tokenAddress,
+            formData.currency,
+            formData.tokenDecimals,
+            chainId // Add current chainId
+          );
+        } else {
+          // Dynamic QR untuk ETH native
+          url = crossChainNameService.generateBusinessVaultQR(
+            vaultAddress,
+            formData.amount,
+            formData.category,
+            undefined, // no token address
+            'ETH',
+            18,
+            chainId // Add current chainId
+          );
+        }
         
         // Log untuk debug info QR code
-        console.log("QR Code URL Generated:", {
+        console.log("🎯 QR Code Generated:", {
+          mode: qrMode,
           vaultAddress,
           amount: formData.amount,
           category: formData.category,
+          currency: formData.currency,
           tokenAddress: formData.currency === 'IDRT' ? formData.tokenAddress : undefined,
-          tokenSymbol: formData.currency === 'IDRT' ? formData.currency : undefined,
           tokenDecimals: formData.tokenDecimals,
           fullUrl: url
         });
@@ -378,6 +426,16 @@ const QRBusinessGenerator: React.FC<QRBusinessGeneratorProps> = ({
                 <span className="font-medium">{businessName}</span>
               </div>
               
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Mode QR:</span>
+                <span className="font-medium capitalize">{qrMode === 'static' ? 'Statis' : 'Dinamis'}</span>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Mata Uang:</span>
+                <span className="font-medium">{formData.currency}</span>
+              </div>
+              
               {qrMode === 'dynamic' && (
                 <>
                   <div className="flex justify-between items-center">
@@ -388,24 +446,47 @@ const QRBusinessGenerator: React.FC<QRBusinessGeneratorProps> = ({
                     </span>
                   </div>
                   
-                  {formData.currency === 'IDRT' && (
-                    <div className="flex justify-between items-center text-xs bg-gray-50 p-2 rounded">
-                      <span className="text-gray-600">Token:</span>
-                      <div className="text-right">
-                        <span className="font-medium block">
-                          {tokenOptions.find(t => t.value === formData.tokenAddress)?.label || 'Unknown'}
-                        </span>
-                        <span className="font-mono">
-                          {formData.tokenAddress.slice(0, 6)}...{formData.tokenAddress.slice(-4)}
-                        </span>
+                  {formData.currency === 'IDRT' && formData.tokenAddress && (
+                    <>
+                      <div className="flex justify-between items-center text-xs bg-blue-50 p-2 rounded">
+                        <span className="text-blue-600">Format QR:</span>
+                        <span className="font-mono text-blue-800">ethereum: protocol</span>
                       </div>
+                      <div className="flex justify-between items-center text-xs bg-gray-50 p-2 rounded">
+                        <span className="text-gray-600">Token:</span>
+                        <div className="text-right">
+                          <span className="font-medium block">
+                            {tokenOptions.find(t => t.value === formData.tokenAddress)?.label || 'Unknown'}
+                          </span>
+                          <span className="font-mono">
+                            {formData.tokenAddress.slice(0, 6)}...{formData.tokenAddress.slice(-4)}
+                          </span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  
+                  {formData.currency === 'ETH' && (
+                    <div className="flex justify-between items-center text-xs bg-green-50 p-2 rounded">
+                      <span className="text-green-600">Format QR:</span>
+                      <span className="font-mono text-green-800">SmartVerse DApp URL</span>
                     </div>
                   )}
+                  
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Kategori:</span>
                     <span className="font-medium">{formData.category}</span>
                   </div>
                 </>
+              )}
+              
+              {qrMode === 'static' && (
+                <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
+                  <p className="font-medium mb-1">QR Statis:</p>
+                  <p>• Customer akan input jumlah pembayaran sendiri</p>
+                  <p>• Dapat digunakan berulang kali</p>
+                  <p>• Cocok untuk display di kasir</p>
+                </div>
               )}
             </div>
             
