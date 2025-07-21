@@ -97,7 +97,9 @@ export class UniversalQRParser {
     }
     
     // 3. Check for DApp URL without business type
-    if (qrData.includes('smartverse-id.vercel.app') && !qrData.includes('type=business')) {
+    if ((qrData.includes('smartverse-id.vercel.app') || qrData.includes('smartverse.app')) 
+        && !qrData.includes('type=business') 
+        && !qrData.includes('/pay/')) {
       return this.parsePersonalDAppURL(qrData);
     }
     

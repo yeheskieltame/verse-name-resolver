@@ -14,6 +14,7 @@ import { parseUnits, formatUnits, type Address } from 'viem';
 import { toast } from '@/hooks/use-toast';
 import { QRCodeSVG } from 'qrcode.react';
 import { BusinessQRParser } from '@/utils/qrParser';
+import { crossChainNameService } from '@/services/crossChainNameService';
 import { BUSINESS_CONTRACTS, MockIDRT_ABI, BusinessVault_ABI } from '@/contracts/BusinessContracts';
 
 interface BusinessActionsProps {
@@ -96,15 +97,22 @@ export const BusinessActions: React.FC<BusinessActionsProps> = ({
       return '';
     }
 
-    return BusinessQRParser.generateBusinessQR({
-      recipientAddress: vaultAddress,
-      amount: paymentAmount,
-      category: paymentCategory,
-      message: paymentMessage,
-      businessName: businessName,
-      format: 'url'
-    });
-  }, [paymentAmount, paymentCategory, paymentMessage, vaultAddress, businessName]);
+    // Use the proper crossChainNameService for consistent QR format
+    try {
+      return crossChainNameService.generateBusinessVaultQR(
+        vaultAddress,
+        paymentAmount,
+        paymentCategory,
+        undefined, // No token address for native ETH payments
+        'ETH',
+        18,
+        chainId // Use current chain ID
+      );
+    } catch (error) {
+      console.error('Error generating business QR:', error);
+      return '';
+    }
+  }, [paymentAmount, paymentCategory, vaultAddress, chainId]);
 
   const qrCodeData = generatePaymentQR();
 

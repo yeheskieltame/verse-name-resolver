@@ -45,11 +45,17 @@ export class BusinessQRParser {
       }
       
       // Try business URL format
-      if (cleanedData.includes('smartverse-id.vercel.app/pay') || cleanedData.includes('/pay?')) {
+      if (cleanedData.includes('smartverse.app/pay') || 
+          cleanedData.includes('smartverse-id.vercel.app/pay') || 
+          cleanedData.includes('/pay?') ||
+          cleanedData.includes('/pay/')) {
+        console.log('🔗 Attempting to parse as business URL format...');
         const result = this.parseBusinessURL(cleanedData);
         if (result) {
           console.log('✅ Successfully parsed business URL format');
           return result;
+        } else {
+          console.log('❌ Failed to parse business URL format');
         }
       }
       
@@ -157,31 +163,56 @@ export class BusinessQRParser {
    */
   private static parseBusinessURL(qrData: string): BusinessQRPayment | null {
     try {
-      // Check if it's our DApp URL with pay endpoint
-      if (!qrData.includes('/pay?') && !qrData.includes('smartverse-id.vercel.app')) {
+      console.log('🏪 Parsing business URL:', qrData);
+      
+      // Support multiple URL formats:
+      // 1. https://smartverse.app/pay/0xAddress?params
+      // 2. https://smartverse-id.vercel.app/pay?address=0xAddress&params
+      
+      let url: URL;
+      let recipientAddress: string | null = null;
+      
+      try {
+        url = new URL(qrData);
+        console.log('📍 URL parsed successfully:', url.pathname, url.search);
+      } catch (error) {
+        console.warn('Invalid URL format:', qrData);
         return null;
       }
       
-      const url = new URL(qrData);
-      const params = new URLSearchParams(url.search);
+      // Check if it's a business payment URL
+      if (!url.pathname.includes('/pay')) {
+        console.warn('Not a payment URL - missing /pay in path');
+        return null;
+      }
       
-      const address = params.get('address');
+      // Extract address from URL path or params
+      if (url.pathname.includes('/pay/')) {
+        // Format: /pay/0xAddress
+        const pathParts = url.pathname.split('/pay/');
+        if (pathParts.length >= 2) {
+          recipientAddress = pathParts[1];
+          console.log('📭 Address extracted from path:', recipientAddress);
+        }
+      } else {
+        // Format: /pay?address=0xAddress
+        recipientAddress = url.searchParams.get('address');
+        console.log('📭 Address extracted from params:', recipientAddress);
+      }
+      
+      if (!recipientAddress || !isAddress(recipientAddress)) {
+        console.warn('Invalid address in business URL:', recipientAddress);
+        return null;
+      }
+      
+      const params = url.searchParams;
       const amount = params.get('amount');
-      const category = params.get('category') || 'Pembayaran QR';
-      const type = params.get('type');
+      const category = params.get('category') || 'Business Payment';
       const tokenAddress = params.get('token');
       const tokenSymbol = params.get('tokenSymbol');
+      const businessName = params.get('businessName');
       
-      if (!address || !isAddress(address)) {
-        console.warn('Invalid address in DApp URL:', address);
-        return null;
-      }
-      
-      // Validate that this is a business payment
-      if (type !== 'business') {
-        console.warn('QR code is not marked as business payment');
-        return null;
-      }
+      console.log('💰 Payment details:', { amount, category, tokenAddress, tokenSymbol, businessName });
       
       let amountWei: string | undefined;
       let amountEther: string | undefined;
@@ -208,7 +239,8 @@ export class BusinessQRParser {
       
       const result: BusinessQRPayment = {
         type: 'business',
-        recipientAddress: address,
+        recipientAddress: recipientAddress,
+        businessName: businessName || undefined,
         amount: amountWei,
         amountEther: amountEther,
         amountFormatted: amountFormatted,
@@ -399,16 +431,42 @@ export class BusinessQRParser {
       
       return JSON.stringify(jsonData);
     } else {
-      // URL format
-      const baseUrl = 'https://smartverse.app/pay';
-      const url = new URL(`${baseUrl}/${recipientAddress}`);
-      
-      url.searchParams.set('category', category);
-      if (amount) url.searchParams.set('amount', amount);
-      if (message) url.searchParams.set('message', message);
-      if (businessName) url.searchParams.set('business', businessName);
-      
-      return url.toString();
+      // Use proper EIP-681 ethereum: protocol format for consistency
+      if (amount && amount !== '0') {
+        try {
+          const ethAmountWei = parseUnits(amount, 18);
+          // Format: ethereum:0xAddress?value=amountInWei&message=description
+          let url = `ethereum:${recipientAddress}?value=${ethAmountWei.toString()}`;
+          
+          // Add metadata as query parameters
+          const metadata = [];
+          if (message) metadata.push(`message=${encodeURIComponent(message)}`);
+          if (businessName) metadata.push(`business=${encodeURIComponent(businessName)}`);
+          if (category) metadata.push(`category=${encodeURIComponent(category)}`);
+          
+          if (metadata.length > 0) {
+            url += '&' + metadata.join('&');
+          }
+          
+          return url;
+        } catch (error) {
+          console.error('❌ Error converting amount to wei:', error);
+          throw new Error('Invalid amount format');
+        }
+      } else {
+        // Static QR - use DApp URL format for consistency with crossChainNameService
+        const baseUrl = 'https://smartverse-id.vercel.app/pay';
+        const params = new URLSearchParams();
+        
+        params.set('address', recipientAddress);
+        params.set('category', category);
+        params.set('type', 'business');
+        
+        if (message) params.set('message', message);
+        if (businessName) params.set('business', businessName);
+        
+        return `${baseUrl}?${params.toString()}`;
+      }
     }
   }
 }
