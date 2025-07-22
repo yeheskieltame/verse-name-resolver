@@ -2,19 +2,21 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from './ui/dialog';
 import { Alert, AlertDescription } from './ui/alert';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Separator } from './ui/separator';
-import { QrCode, Wallet, ArrowUpRight, ArrowDownLeft, DollarSign, Building2, Copy, Check, AlertCircle, Loader2, CreditCard } from 'lucide-react';
+import { QrCode, Wallet, ArrowUpRight, ArrowDownLeft, DollarSign, Building2, Copy, Check, AlertCircle, Loader2, CreditCard, Tag } from 'lucide-react';
 import { useAccount, useChainId, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseUnits, formatUnits, type Address } from 'viem';
 import { toast } from '@/hooks/use-toast';
 import { QRCodeSVG } from 'qrcode.react';
 import { BusinessQRParser } from '@/utils/qrParser';
 import { crossChainNameService } from '@/services/crossChainNameService';
+import { CategoryManager } from './CategoryManager';
 import { BUSINESS_CONTRACTS, MockIDRT_ABI, BusinessVault_ABI } from '@/contracts/BusinessContracts';
 
 interface BusinessActionsProps {
@@ -362,19 +364,25 @@ export const BusinessActions: React.FC<BusinessActionsProps> = ({
   }
 
   return (
-    <div className="space-y-6">
-      {/* Business Info */}
-      <Card className="business-info-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building2 className="w-5 h-5" />
-            {businessName}
-          </CardTitle>
-          <CardDescription>
-            Alamat: {vaultAddress}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+    <Tabs defaultValue="actions" className="space-y-6">
+      <TabsList className="grid w-full grid-cols-2">
+        <TabsTrigger value="actions">Aksi Bisnis</TabsTrigger>
+        <TabsTrigger value="categories">🏷️ Kategori</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="actions" className="space-y-6">
+        {/* Business Info */}
+        <Card className="business-info-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="w-5 h-5" />
+              {businessName}
+            </CardTitle>
+            <CardDescription>
+              Alamat: {vaultAddress}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Saldo IDRT Saat Ini</p>
@@ -685,7 +693,15 @@ export const BusinessActions: React.FC<BusinessActionsProps> = ({
           </div>
         </CardContent>
       </Card>
-    </div>
+      </TabsContent>
+
+      <TabsContent value="categories" className="space-y-6">
+        <CategoryManager 
+          vaultAddress={vaultAddress} 
+          businessName={businessName}
+        />
+      </TabsContent>
+    </Tabs>
   );
 };
 

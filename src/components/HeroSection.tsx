@@ -16,17 +16,17 @@ export const HeroSection = () => {
       {/* Main Title */}
       <div className="space-y-6 sm:space-y-8 animate-fade-in">
         <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-gray-900 leading-tight">
-          Web3 Made{' '}
+          UMKM Digital{' '}
           <span className="gradient-text">
-            Simple
+            Terpercaya
           </span>
         </h1>
         <p className="text-lg sm:text-xl lg:text-2xl xl:text-3xl text-gray-600 max-w-5xl mx-auto leading-relaxed px-4">
-          Send crypto using simple names like{' '}
+          Bangun kredibilitas bisnis dengan identitas{' '}
           <span className="text-purple-700 font-mono bg-purple-50 px-3 sm:px-4 py-2 rounded-xl border border-purple-200 shadow-sm">
-            yourname.sw
+            bisnis.sw
           </span>{' '}
-          instead of complex wallet addresses
+          dan analisis on-chain yang transparan
         </p>
       </div>
       
@@ -34,15 +34,15 @@ export const HeroSection = () => {
       <div className="flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-6 lg:gap-8 animate-scale-in">
         <div className="flex items-center gap-3 text-gray-700 bg-white hover:bg-gray-50 transition-all duration-300 px-4 sm:px-6 py-3 sm:py-4 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md hover:scale-105">
           <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-green-500" />
-          <span className="font-semibold text-sm sm:text-base">Secure</span>
+          <span className="font-semibold text-sm sm:text-base">Aman</span>
         </div>
         <div className="flex items-center gap-3 text-gray-700 bg-white hover:bg-gray-50 transition-all duration-300 px-4 sm:px-6 py-3 sm:py-4 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md hover:scale-105">
           <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-500" />
-          <span className="font-semibold text-sm sm:text-base">Fast</span>
+          <span className="font-semibold text-sm sm:text-base">Transparan</span>
         </div>
         <div className="flex items-center gap-3 text-gray-700 bg-white hover:bg-gray-50 transition-all duration-300 px-4 sm:px-6 py-3 sm:py-4 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md hover:scale-105">
           <Globe className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" />
-          <span className="font-semibold text-sm sm:text-base">Decentralized</span>
+          <span className="font-semibold text-sm sm:text-base">Kredibel</span>
         </div>
       </div>
       
@@ -55,11 +55,11 @@ export const HeroSection = () => {
             <Sparkles className="w-6 h-6 sm:w-7 sm:h-7 text-purple-500" />
           </div>
           <p className="text-gray-700 text-base sm:text-lg lg:text-xl leading-relaxed mb-6">
-            Connect your wallet and register your first <span className="text-purple-700 font-bold">.sw</span> name in minutes!
+            Hubungkan wallet dan daftarkan <span className="text-purple-700 font-bold">.sw</span> bisnis Anda dalam hitungan menit!
           </p>
           <div className="inline-flex items-center gap-2 text-gray-600 text-sm sm:text-base bg-gray-50 px-4 py-2 rounded-xl border border-gray-200">
             <Globe className="w-4 h-4" />
-            <span>Works on Taranium Network, Ethereum, and more</span>
+            <span>Kompatible dengan Taranium Network, Ethereum, dan lainnya</span>
             <ArrowRight className="w-4 h-4" />
           </div>
         </div>

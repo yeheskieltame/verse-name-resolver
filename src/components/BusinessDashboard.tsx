@@ -7,6 +7,8 @@ import { Progress } from './ui/progress';
 import { Dialog, DialogContent } from './ui/dialog';
 import OnboardingTour from './OnboardingTour';
 import { useTourManager } from '../hooks/useTourManager';
+import { EnhancedBusinessDashboard } from './EnhancedBusinessDashboard';
+import { BusinessTransactionReader } from '../services/businessTransactionReader';
 import { 
   Building2, 
   Wallet, 
@@ -25,7 +27,9 @@ import {
   QrCode,
   Search,
   Filter,
-  FileText
+  FileText,
+  BarChart3,
+  Shield
 } from 'lucide-react';
 import { useAccount, useChainId, useReadContract } from 'wagmi';
 import { BUSINESS_CONTRACTS, getContractAddress, isSupportedChain, BusinessVault_ABI, MockIDRT_ABI } from '../contracts/BusinessContracts';
@@ -122,6 +126,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
   const [businessService] = useState(new SmartVerseBusinessService());
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedVaultForPayment, setSelectedVaultForPayment] = useState<BusinessVault | null>(null);
+  const [selectedVault, setSelectedVault] = useState<BusinessVault | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<BusinessTransaction | null>(null);
@@ -291,9 +296,11 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
           };
           
           setBusinessVaults([vault]);
+          setSelectedVault(vault); // Set selected vault for analytics
         } else {
           // No business vault found
           setBusinessVaults([]);
+          setSelectedVault(null);
           setRecentTransactions([]);
           setAllTransactions([]);
         }
@@ -499,8 +506,9 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
           onValueChange={setActiveTab}
           className="space-y-6"
         >
-          <TabsList className="grid grid-cols-4 mb-4 tour-tabs">
+          <TabsList className="grid grid-cols-5 mb-4 tour-tabs">
             <TabsTrigger value="overview" className="tour-overview">Ringkasan</TabsTrigger>
+            <TabsTrigger value="analytics" className="tour-analytics">📊 Analitik</TabsTrigger>
             <TabsTrigger value="actions" className="tour-actions">Aksi</TabsTrigger>
             <TabsTrigger value="transactions" className="tour-transactions">Transaksi</TabsTrigger>
             <TabsTrigger value="reports" className="tour-reports">Laporan</TabsTrigger>
@@ -796,6 +804,46 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onCreateNewBusine
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* Enhanced Analytics Tab */}
+          <TabsContent value="analytics" className="space-y-6">
+            {businessVaults.length === 0 ? (
+              <div className="text-center py-12">
+                <BarChart3 className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Analitik Bisnis
+                </h3>
+                <p className="text-gray-500 mb-6">
+                  Buat vault bisnis terlebih dahulu untuk melihat analitik keuangan yang canggih
+                </p>
+                <Button onClick={onCreateNewBusiness} className="gap-2">
+                  <PlusCircle className="h-4 w-4" />
+                  Buat Bisnis Pertama
+                </Button>
+              </div>
+            ) : selectedVault ? (
+              <EnhancedBusinessDashboard 
+                vaultAddress={selectedVault.address} 
+                businessName={selectedVault.name}
+              />
+            ) : (
+              <div className="text-center py-12">
+                <Shield className="h-16 w-16 text-blue-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Pilih Bisnis untuk Analitik
+                </h3>
+                <p className="text-gray-500 mb-6">
+                  Pilih bisnis dari dropdown di atas untuk melihat analitik mendalam berbasis blockchain
+                </p>
+                <div className="space-y-2 text-sm text-gray-600">
+                  <p>📊 Skor Kesehatan Bisnis</p>
+                  <p>📈 Trend Arus Kas</p>
+                  <p>🏷️ Analisis Kategori</p>
+                  <p>💡 Rekomendasi Bisnis</p>
+                </div>
+              </div>
+            )}
           </TabsContent>
 
           {/* Actions Tab */}
